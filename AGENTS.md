@@ -30,6 +30,88 @@ uv run flake8 src tests
 uv run black --check src tests
 ```
 
+## CI/CD Pipeline
+
+### Running checks locally before pushing
+
+Before pushing your branch, run the same checks that CI will run:
+
+```bash
+# Install/update dependencies
+uv sync
+
+# Lint code
+uv run flake8 src tests
+
+# Check formatting
+uv run black --check src tests
+uv run isort --check-only src tests
+
+# Auto-fix formatting issues
+uv run black src tests
+uv run isort src tests
+
+# Run tests
+uv run pytest tests
+```
+
+### Creating a pull request
+
+1. Create a feature branch from `main`:
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout -b feat/your-feature-name
+   ```
+
+2. Make your changes and commit:
+   ```bash
+   git add .
+   git commit -m "feat: description of what you changed"
+   ```
+
+3. Push your branch:
+   ```bash
+   git push -u origin feat/your-feature-name
+   ```
+
+4. On GitHub, create a PR to `main`
+
+5. Wait for the CI workflow to complete (usually 2–3 minutes)
+   - Check the "Checks" tab on your PR
+   - All checks must pass (✅) before merging
+
+6. If checks fail:
+   - Read the error logs
+   - Fix issues locally
+   - Commit and push again
+   - CI will re-run automatically
+
+7. Once all checks pass, merge your PR
+
+### Creating a release
+
+When you're ready to release a version:
+
+```bash
+# Ensure you're on main and everything is up to date
+git checkout main
+git pull origin main
+
+# Create a version tag
+git tag -a v0.1.0 -m "Release v0.1.0"
+
+# Push the tag to GitHub
+git push origin v0.1.0
+```
+
+The CI/CD system will automatically:
+- Build PyInstaller bundles for Linux, macOS, and Windows
+- Create a GitHub Release with download links
+- The release appears under "Releases" in your repository
+
+You can download the bundle directly from the Release page.
+
 ## Project structure
 ```text
 .
@@ -53,9 +135,12 @@ uv run black --check src tests
 
 ## Required Workflow
 
-- Always create a new branch before making changes.
-- When the work is complete, create a merge request.
-- In the merge request description, include an executive summary of:
+- Always create a new feature branch before making changes.
+  - Use conventional branch names: `feat/feature-name`, `fix/bug-name`, `docs/documentation-name`
+  - Example: `feat/ci-cd-setup`, `fix/import-error`, `docs/readme-update`
+- Run linting and tests locally before pushing (see CI/CD Pipeline section)
+- When the work is complete, create a pull request to `main`
+- In the pull request description, include an executive summary of:
 	- what was changed,
 	- why it was changed,
 	- the result or validation outcome.
@@ -63,7 +148,7 @@ uv run black --check src tests
 - Preserve existing project conventions unless the task explicitly asks for a change.
 
 ## Code Quality
-- Follow stardard Python coding conventions.
+- Follow standard Python coding conventions.
 - Use descriptive variable and function names.
 - Always use snake case for variables and functions, and PascalCase for classes.
 - Write modular, reusable code with clear interfaces.
@@ -74,14 +159,16 @@ uv run black --check src tests
 - Prefer shorter, atomic functions.
 
 ## Testing
-- Use `uv run pytest` for running tests.
+- Use `uv run pytest tests` for running tests.
+- Place all tests in the `tests/` directory.
 - When creating tests, mirror the folder structure of `src` in the `tests` folder for better organization and maintainability.
-- For every new feature (exluding the UI), create unit tests that cover the expected behavior, edge cases, and error handling.
+- For every new feature (excluding the UI), create unit tests that cover the expected behavior, edge cases, and error handling.
 - Aim for high test coverage, especially for critical logic.
+- Test file naming convention: `test_*.py` or `*_test.py`
 
 ## Pull request template
 
-"""
+```
 ### Summary
 <!-- Provide a brief summary of the changes made in this pull request. -->
 ### Motivation
@@ -92,7 +179,7 @@ uv run black --check src tests
 <!-- Describe how you validated the changes. What tests were run and what were the results? -->
 ### Additional Notes
 <!-- Include any additional information or context that may be relevant to reviewers. -->
-"""
+```
 
 ## Explicit boundaries
 Never commit secrets, API keys, or sensitive information to the repository.
