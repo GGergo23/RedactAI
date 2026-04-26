@@ -40,9 +40,14 @@ jobs:
       - name: Check import order with isort
         run: uv run isort --check-only src tests
 
-      - name: Run tests with pytest
-        run: uv run pytest tests --cov=src --cov-report=term --cov-report=xml
+      - name: Install system dependencies for PyQt6
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 xvfb  
 
+      - name: Run tests with pytest
+        run: xvfb-run uv run pytest tests --cov=src --cov-report=term --cov-report=xml
+        
       - name: Upload coverage to Codecov (optional)
         uses: codecov/codecov-action@v3
         with:
