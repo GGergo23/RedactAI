@@ -30,6 +30,53 @@ uv run flake8 src tests
 uv run black --check src tests
 ```
 
+## CI/CD Pipeline
+
+### Running checks locally before pushing
+
+Before pushing your branch, run the same checks that CI will run:
+
+```bash
+# Lint and format
+uv run flake8 src test
+uv run black src test
+uv run isort src test
+
+# Run tests
+uv run pytest test
+```
+
+### Creating a pull request
+
+1. Push your feature branch to GitHub
+2. Create a PR to `main`
+3. Wait for the CI workflow to complete (usually 2–3 minutes)
+4. If checks pass, you're good to merge
+5. If checks fail, fix the issues locally and push again
+
+### Creating a release
+
+When you're ready to release a version:
+
+```bash
+# Ensure you're on main and everything is committed
+git checkout main
+git pull origin main
+
+# Create a version tag
+git tag -a v0.1.0 -m "Release v0.1.0"
+
+# Push the tag to GitHub
+git push origin v0.1.0
+```
+
+The CI/CD system will automatically:
+- Build PyInstaller bundles for Linux, macOS, and Windows
+- Create a GitHub Release with download links
+- Tag appears under "Releases" in your repository
+
+You can download the bundle directly from the Release page.
+
 ## Project structure
 ```text
 .
