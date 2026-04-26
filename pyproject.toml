@@ -11,14 +11,56 @@ dependencies = [
 ]
 
 [project.scripts]
-app = "main:main"
+app = "src.main:main"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-py-modules = ["main"]
+packages = ["src"]
 
 [tool.setuptools.package-dir]
-"" = "src"
+"" = "."
+
+[tool.black]
+line-length = 120
+target-version = ['py314']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+skip_glob = [".venv", "venv"]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-v --strict-markers"
+markers = [
+    "slow: marks tests as slow",
+    "integration: marks tests as integration tests",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/test/*", "*/venv/*"]
+branch = true
+
+[tool.flake8]
+max-line-length = 120
+exclude = [".venv", "venv", ".git", "__pycache__", "dist", "build", "test"]
+extend-ignore = ["E203", "W503"]
