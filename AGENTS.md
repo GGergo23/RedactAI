@@ -182,11 +182,11 @@ You can download the bundle directly from the Release page.
 ```
 
 ## Explicit boundaries
-Never commit secrets, API keys, or sensitive information to the repository.
-Use environment variables or secure vaults for managing sensitive data.
-Always review code for security implications, especially when handling external data or executing trades.
-Don't suggest `pip install` commands in code snippets. Use `uv` for dependency management and virtual environments.
-Before adding a new dependency, consider if it is necessary (eg. there is an alternative already in the dependencies) and if there are lighter alternatives. Always prefer standard library solutions whenever reasonable.
+- Never commit secrets, API keys, or sensitive information to the repository.
+- Use environment variables or secure vaults for managing sensitive data.
+- Always review code for security implications, especially when handling external data or executing trades.
+- Don't suggest `pip install` commands in code snippets. Use `uv` for dependency management and virtual environments.
+- Before adding a new dependency, consider if it is necessary (eg. there is an alternative already in the dependencies) and if there are lighter alternatives. Always prefer standard library solutions whenever reasonable.
 
 ## Project-specific warnings
 None at this time
