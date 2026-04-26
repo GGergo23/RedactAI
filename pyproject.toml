@@ -47,7 +47,7 @@ line_length = 120
 skip_glob = [".venv", "venv"]
 
 [tool.pytest.ini_options]
-testpaths = ["test"]
+testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 addopts = "-v --strict-markers"
 markers = [
@@ -57,10 +57,10 @@ markers = [
 
 [tool.coverage.run]
 source = ["src"]
-omit = ["*/test/*", "*/venv/*"]
+omit = ["*/tests/*", "*/venv/*"]
 branch = true
 
 [tool.flake8]
 max-line-length = 120
-exclude = [".venv", "venv", ".git", "__pycache__", "dist", "build", "test"]
+exclude = [".venv", "venv", ".git", "__pycache__", "dist", "build", "tests"]
 extend-ignore = ["E203", "W503"]
