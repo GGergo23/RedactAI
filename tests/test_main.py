@@ -2,13 +2,9 @@
 Basic sanity tests for the RedactAI application.
 """
 
-import sys
-from pathlib import Path
+import inspect
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-from main import main
+from src.main import main
 
 
 def test_main_exists():
@@ -17,9 +13,9 @@ def test_main_exists():
 
 
 def test_main_returns_int():
-    """Test that main() can be called and returns an int (or can be converted to int)."""
+    """Test that main() returns int (verified via signature)."""
     # We can't actually call it in a test (it creates a GUI window),
     # but we can verify the function signature
-    import inspect
     sig = inspect.signature(main)
-    assert sig.return_annotation == int or str(sig.return_annotation) == "<class 'int'>"
+    is_int = sig.return_annotation == int
+    assert is_int or str(sig.return_annotation) == "<class 'int'>"
