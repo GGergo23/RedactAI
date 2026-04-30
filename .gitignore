@@ -151,6 +151,7 @@ activemq-data/
 .env
 .envrc
 .venv
+.planning/
 env/
 venv/
 ENV/
@@ -220,3 +221,7 @@ __marimo__/
 #### ADDITIONAL RULES BELOW THIS LINE ####
 # DS_Store
 .DS_Store
+
+# Kristóf's agentic coding artifacts
+.agent/
+.planning/

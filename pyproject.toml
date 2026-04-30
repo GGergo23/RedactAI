@@ -10,7 +10,7 @@ dependencies = [
     "pyqt6>=6.11.0",
     "pytest>=9.0.3",
     "pytest-cov>=4.1.0",
-
+    "spacy>=3.8.13",
 ]
 
 [project.scripts]
