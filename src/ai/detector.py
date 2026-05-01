@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import re
-from typing import Iterable
+from pathlib import Path
 
 import spacy
 from spacy.language import Language
@@ -85,14 +84,16 @@ class NLPDetector:
                 )
             )
 
-        # Find deterministic regex-based entities and emit them as authoritative
-        # when overlaps occur.
         regex_entities = _regex_entities(text)
 
         # Remove any spaCy entity that overlaps a regex span (regex wins).
         retained_spacy: list[NLPEntity] = []
         for se in spacy_entities:
-            if any(_spans_overlap(se.start, se.end, re_e.start, re_e.end) for re_e in regex_entities):
+            overlaps = any(
+                _spans_overlap(se.start, se.end, re_e.start, re_e.end)
+                for re_e in regex_entities
+            )
+            if overlaps:
                 continue
             retained_spacy.append(se)
 
@@ -107,31 +108,61 @@ def _spans_overlap(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
 
 
 _EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
-_PHONE_RE = re.compile(r"\b(?:\+?\d{1,3}[-.\s]?)?(?:\(?\d{2,4}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{3,4}\b")
+_PHONE_RE = re.compile(
+    r"(?:\+?\d{1,3}[-\.\s]?)?(?:\(?\d{2,4}\)?[-\.\s]?)?\d{3,5}[-\.\s]?\d{3,5}"
+)
 _IBAN_RE = re.compile(r"\b[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}\b", re.IGNORECASE)
 
 
 def _regex_entities(text: str) -> list[NLPEntity]:
-    entities: list[NLPEntity] = []
+    candidates: list[NLPEntity] = []
     for m in _EMAIL_RE.finditer(text):
-        entities.append(NLPEntity(label="EMAIL", text=m.group(0), start=m.start(), end=m.end(), confidence=1.0, source="regex"))
+        candidates.append(
+            NLPEntity(
+                label="EMAIL",
+                text=m.group(0),
+                start=m.start(),
+                end=m.end(),
+                confidence=1.0,
+                source="regex",
+            )
+        )
     for m in _PHONE_RE.finditer(text):
-        entities.append(NLPEntity(label="PHONE", text=m.group(0), start=m.start(), end=m.end(), confidence=1.0, source="regex"))
+        candidates.append(
+            NLPEntity(
+                label="PHONE",
+                text=m.group(0),
+                start=m.start(),
+                end=m.end(),
+                confidence=1.0,
+                source="regex",
+            )
+        )
     for m in _IBAN_RE.finditer(text):
-        # Normalize IBAN to uppercase text slice
-        entities.append(NLPEntity(label="IBAN", text=m.group(0), start=m.start(), end=m.end(), confidence=1.0, source="regex"))
+        candidates.append(
+            NLPEntity(
+                label="IBAN",
+                text=m.group(0),
+                start=m.start(),
+                end=m.end(),
+                confidence=1.0,
+                source="regex",
+            )
+        )
 
-    # Deduplicate exact-span matches preferring the first-found (email, phone, iban order)
-    seen: set[tuple[int, int]] = set()
-    unique: list[NLPEntity] = []
-    for e in entities:
-        key = (e.start, e.end)
-        if key in seen:
+    # Prefer longer matches when regexes overlap: sort by span length desc
+    # and accept non-overlapping matches only (longer spans win).
+    candidates.sort(key=lambda e: e.end - e.start, reverse=True)
+    accepted: list[NLPEntity] = []
+    for c in candidates:
+        overlaps = any(_spans_overlap(c.start, c.end, a.start, a.end) for a in accepted)
+        if overlaps:
             continue
-        seen.add(key)
-        unique.append(e)
+        accepted.append(c)
 
-    return unique
+    # Return accepted matches sorted by start index.
+    accepted.sort(key=lambda e: e.start)
+    return accepted
 
 
 def _normalize_label(label: str) -> str | None:

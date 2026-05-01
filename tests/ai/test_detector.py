@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 import src.ai.detector as detector_module
-from src.ai.detector import DEFAULT_MODEL_PATH, NLPDetector, ModelLoadError
+from src.ai.detector import DEFAULT_MODEL_PATH, ModelLoadError, NLPDetector
 from src.ai.types import NLPEntity
 
 
@@ -23,7 +23,7 @@ def test_entity_contract_fields():
     assert entity.end == 10
     assert entity.confidence == 0.87
     assert entity.source == "spacy"
-    assert entity.text[entity.start : entity.end] == entity.text  # noqa: E203
+    assert entity.text[entity.start : entity.end] == entity.text
 
 
 def test_entity_contract_is_frozen():
@@ -110,7 +110,8 @@ def test_blank_input_returns_empty_and_does_not_load_model(monkeypatch):
     def _fail_load(path):
         nonlocal called
         called = True
-        raise AssertionError("spacy.load should not be called for blank input")
+        msg = "spacy.load should not be called for blank input"
+        raise AssertionError(msg)
 
     monkeypatch.setattr(detector_module.spacy, "load", _fail_load)
 
@@ -121,7 +122,7 @@ def test_blank_input_returns_empty_and_does_not_load_model(monkeypatch):
 
 
 def test_regex_detection_and_roundtrip(monkeypatch):
-    # Make spaCy loader return a language that produces no entities so regex-only
+    # Make spaCy loader return a language with no entities (regex-only)
     class FakeDoc:
         ents = []
 
@@ -129,17 +130,23 @@ def test_regex_detection_and_roundtrip(monkeypatch):
         def __call__(self, text: str):
             return FakeDoc()
 
-    monkeypatch.setattr(detector_module.spacy, "load", lambda path: FakeLanguage())
+    def fake_load(path):
+        return FakeLanguage()
+
+    monkeypatch.setattr(detector_module.spacy, "load", fake_load)
 
     detector = NLPDetector()
-    text = "Contact: alice@example.com, call +1-555-123-4567, account GB82WEST12345698765432"
+    text = (
+        "Contact: alice@example.com, call +1-555-123-4567, "
+        "account GB82WEST12345698765432"
+    )
     ents = detector.detect(text)
 
-    # Expect EMAIL, PHONE, IBAN in ascending start order and round-trip slicing
+    # Expect EMAIL, PHONE, IBAN in ascending start order and round-trip
     labels = [e.label for e in ents]
     assert labels == ["EMAIL", "PHONE", "IBAN"]
     for e in ents:
-        assert text[e.start : e.end] == e.text  # noqa: E203
+        assert text[e.start : e.end] == e.text
 
 
 def test_regex_wins_over_spacy_overlap(monkeypatch):
@@ -166,7 +173,10 @@ def test_regex_wins_over_spacy_overlap(monkeypatch):
     # spaCy reports a PERSON entity that covers the same span as the email
     spa_ent = FakeEntity(start=9, end=28, label_="PERSON", text="alice@example.com")
 
-    monkeypatch.setattr(detector_module.spacy, "load", lambda path: FakeLanguage([spa_ent]))
+    def fake_load(path):
+        return FakeLanguage([spa_ent])
+
+    monkeypatch.setattr(detector_module.spacy, "load", fake_load)
 
     detector = NLPDetector()
     ents = detector.detect(sample)
@@ -174,4 +184,4 @@ def test_regex_wins_over_spacy_overlap(monkeypatch):
     # Only regex EMAIL should be present (spaCy overlap removed)
     assert len(ents) == 1
     assert ents[0].label == "EMAIL"
-    assert sample[ents[0].start : ents[0].end] == ents[0].text  # noqa: E203
+    assert sample[ents[0].start : ents[0].end] == ents[0].text
