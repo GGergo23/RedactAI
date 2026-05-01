@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
+from typing import Iterable
 
 import spacy
 from spacy.language import Language
@@ -63,14 +65,18 @@ class NLPDetector:
         if not text or not text.strip():
             return []
 
+        # Load spaCy pipeline lazily and collect spaCy entities first.
         nlp = self._load_nlp()
         doc = nlp(text)
 
-        entities: list[NLPEntity] = []
+        spacy_entities: list[NLPEntity] = []
         for entity in doc.ents:
-            entities.append(
+            norm_label = _normalize_label(entity.label_)
+            if norm_label is None:
+                continue
+            spacy_entities.append(
                 NLPEntity(
-                    label=entity.label_,
+                    label=norm_label,
                     text=entity.text,
                     start=entity.start_char,
                     end=entity.end_char,
@@ -79,4 +85,65 @@ class NLPDetector:
                 )
             )
 
-        return entities
+        # Find deterministic regex-based entities and emit them as authoritative
+        # when overlaps occur.
+        regex_entities = _regex_entities(text)
+
+        # Remove any spaCy entity that overlaps a regex span (regex wins).
+        retained_spacy: list[NLPEntity] = []
+        for se in spacy_entities:
+            if any(_spans_overlap(se.start, se.end, re_e.start, re_e.end) for re_e in regex_entities):
+                continue
+            retained_spacy.append(se)
+
+        merged = list(regex_entities) + retained_spacy
+        merged.sort(key=lambda e: e.start)
+
+        return merged
+
+
+def _spans_overlap(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
+    return a_start < b_end and b_start < a_end
+
+
+_EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+_PHONE_RE = re.compile(r"\b(?:\+?\d{1,3}[-.\s]?)?(?:\(?\d{2,4}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{3,4}\b")
+_IBAN_RE = re.compile(r"\b[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}\b", re.IGNORECASE)
+
+
+def _regex_entities(text: str) -> list[NLPEntity]:
+    entities: list[NLPEntity] = []
+    for m in _EMAIL_RE.finditer(text):
+        entities.append(NLPEntity(label="EMAIL", text=m.group(0), start=m.start(), end=m.end(), confidence=1.0, source="regex"))
+    for m in _PHONE_RE.finditer(text):
+        entities.append(NLPEntity(label="PHONE", text=m.group(0), start=m.start(), end=m.end(), confidence=1.0, source="regex"))
+    for m in _IBAN_RE.finditer(text):
+        # Normalize IBAN to uppercase text slice
+        entities.append(NLPEntity(label="IBAN", text=m.group(0), start=m.start(), end=m.end(), confidence=1.0, source="regex"))
+
+    # Deduplicate exact-span matches preferring the first-found (email, phone, iban order)
+    seen: set[tuple[int, int]] = set()
+    unique: list[NLPEntity] = []
+    for e in entities:
+        key = (e.start, e.end)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(e)
+
+    return unique
+
+
+def _normalize_label(label: str) -> str | None:
+    """Map spaCy label names to the canonical phase-3 set or drop them.
+
+    Supported canonical labels: PERSON, ORG, LOCATION, DATE
+    """
+    mapping = {
+        "PERSON": "PERSON",
+        "ORG": "ORG",
+        "GPE": "LOCATION",
+        "LOC": "LOCATION",
+        "DATE": "DATE",
+    }
+    return mapping.get(label)
