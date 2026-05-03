@@ -31,7 +31,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.stacked_widget)
 
         # Create views
-        self.homepage = HomePage(lambda: self.go_to(Page.PLACEHOLDER))
+        self.homepage = HomePage(self.go_to)
         self.placeholder = PlaceholderView(lambda: self.go_to(Page.HOME))
 
         # Register views in a mapping for unified navigation
@@ -52,8 +52,16 @@ class MainWindow(QMainWindow):
         theme_file = Path(__file__).parent / "styles" / "theme.qss"
         self.setStyleSheet(theme_file.read_text(encoding="utf-8"))
 
-    def go_to(self, page: Page) -> None:
-        """Switch to the given view identified by `page` enum."""
+    def go_to(self, page: Page, **kwargs: object) -> None:
+        """Switch to the given view identified by `page` enum.
+
+        Args:
+            page: The page to navigate to.
+            **kwargs: Additional parameters for the page.
+        """
         target = self.views.get(page)
         if target is not None:
+            if hasattr(target, "setLaunchExtra"):
+                target.setLaunchExtra(**kwargs)
             self.stacked_widget.setCurrentWidget(target)
+

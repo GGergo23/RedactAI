@@ -18,7 +18,16 @@ class PlaceholderView(QWidget):
         """
         super().__init__()
         self.on_back = on_back
+        self.launch_extra: dict[str, object] = {}
         self._setup_ui()
+
+    def setLaunchExtra(self, **kwargs: object) -> None:
+        """Set extra launch parameters for this page.
+
+        Args:
+            **kwargs: Additional parameters passed from navigation.
+        """
+        self.launch_extra = kwargs
 
     def _setup_ui(self) -> None:
         """Set up the UI components."""

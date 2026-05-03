@@ -3,7 +3,7 @@
 from typing import Callable
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFileDialog, QLabel, QVBoxLayout, QWidget
 
 from src.ui.views.drop_target_widget import DropTargetWidget
 
@@ -11,15 +11,15 @@ from src.ui.views.drop_target_widget import DropTargetWidget
 class HomePage(QWidget):
     """Homepage view component."""
 
-    def __init__(self, on_open_files: Callable[[], None]) -> None:
+    def __init__(self, transition_page_fn: Callable[[str], None]) -> None:
         """
         Initialize the homepage view.
 
         Args:
-            on_open_files: Callback function when open files button is clicked.
+            transition_page: Callback function for transitioning to other pages.
         """
         super().__init__()
-        self.on_open_files = on_open_files
+        self.transition_page_fn = transition_page_fn
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -42,7 +42,7 @@ class HomePage(QWidget):
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Drag area
-        file_drag_area = DropTargetWidget(self.on_open_files)
+        file_drag_area = DropTargetWidget(self.open_files, self.handle_files)
 
         # Add components to layout with responsive spacing
         layout.addStretch()
@@ -51,3 +51,20 @@ class HomePage(QWidget):
         layout.addStretch(1)
         layout.addWidget(file_drag_area, 2)
         layout.addStretch()
+
+    def open_files(self) -> list[str]:
+        """Open a native file picker for selecting one or more image files."""
+        image_extensions = "*.png *.jpg *.jpeg *.bmp *.tif *.tiff *.webp"
+        image_filter = f"Images ({image_extensions});;All Files (*)"
+        files, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Open Images",
+            "",
+            image_filter,
+        )
+        return files
+    
+    def handle_files(self, files: list[str]) -> None:
+        """Handle the list of files obtained from drag-and-drop or file dialog."""
+        from src.ui.main_window import Page  # Import here to avoid circular dependency
+        self.transition_page_fn(Page.PLACEHOLDER, files=files)

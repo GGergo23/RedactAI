@@ -10,14 +10,16 @@ from PyQt6.QtWidgets import QLabel, QStyle, QVBoxLayout, QWidget
 class DropTargetWidget(QWidget):
     """Interactive drop target that also supports click-to-open."""
 
-    def __init__(self, on_click: Callable[[], None]) -> None:
+    def __init__(self, on_click: Callable[[], None], on_result: Callable[[list[str]], None]) -> None:
         """Initialize the drop target widget.
 
         Args:
             on_click: Callback invoked when the target is clicked.
+            on_result: Callback invoked with the list of dropped files.
         """
         super().__init__()
         self._on_click = on_click
+        self.on_result = on_result
         self.setMinimumHeight(300)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setProperty("role", "drag-area")
@@ -55,7 +57,9 @@ class DropTargetWidget(QWidget):
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Trigger file-open callback on left click."""
         if event.button() == Qt.MouseButton.LeftButton:
-            self._on_click()
+            result = self._on_click()
+            if result:
+                self.on_result(result)
             event.accept()
             return
         super().mousePressEvent(event)
