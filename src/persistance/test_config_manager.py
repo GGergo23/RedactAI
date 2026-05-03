@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from src.persistance.config_manager import ConfigManager
 
 
