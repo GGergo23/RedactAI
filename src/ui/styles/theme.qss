@@ -32,6 +32,57 @@ QWidget[role="drag-area"][drag-hover="true"] {
     background-color: #a9a9a9;
 }
 
+QDialog[role="alert-dialog"] {
+    background-color: #2b2b2b;
+    border: 1px solid #464646;
+    border-radius: 14px;
+}
+
+QDialog[role="alert-dialog"][severity="info"] {
+    border-color: #64b5f6;
+}
+
+QDialog[role="alert-dialog"][severity="warning"] {
+    border-color: #ffb74d;
+}
+
+QDialog[role="alert-dialog"] QLabel {
+    background: transparent;
+    color: #f1f1f1;
+}
+
+QLabel[role="alert-title"] {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+QLabel[role="alert-message"] {
+    font-size: 14px;
+    line-height: 1.35;
+}
+
+QLabel[role="alert-icon"][severity="info"] {
+    background: transparent;
+}
+
+QLabel[role="alert-icon"][severity="warning"] {
+    background: transparent;
+}
+
+QPushButton[role="alert-close"] {
+    background-color: #f76b6b;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+QPushButton[role="alert-close"]:hover {
+    background-color: #ff8c8c;
+}
+
 QLabel[role="drag-title"] {
     background: transparent;
     color: #ececec;
