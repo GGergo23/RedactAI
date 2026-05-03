@@ -54,7 +54,7 @@ class MainWindow(QMainWindow):
 
         if not theme_file.exists():
             raise FileNotFoundError(f"Theme file not found at: {theme_file}")
-        
+
         self.setStyleSheet(theme_file.read_text(encoding="utf-8"))
 
     def go_to(self, page: Page, **kwargs: object) -> None:
