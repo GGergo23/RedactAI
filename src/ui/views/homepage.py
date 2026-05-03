@@ -54,8 +54,8 @@ class HomePage(QWidget):
         layout.addWidget(title)
         layout.addWidget(subtitle)
         layout.addStretch(1)
-        layout.addWidget(file_drag_area, 2)
-        layout.addStretch()
+        layout.addWidget(file_drag_area)
+        layout.addStretch(2)
 
     def open_files(self) -> list[str]:
         """Open a native file picker for selecting one or more image files."""
