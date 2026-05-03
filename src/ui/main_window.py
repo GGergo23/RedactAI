@@ -50,7 +50,8 @@ class MainWindow(QMainWindow):
     def _apply_theme(self) -> None:
         """Load and apply the shared application theme."""
         theme_file = Path(__file__).parent / "styles" / "theme.qss"
-        self.setStyleSheet(theme_file.read_text(encoding="utf-8"))
+        if theme_file.exists():
+            self.setStyleSheet(theme_file.read_text(encoding="utf-8"))
 
     def go_to(self, page: Page, **kwargs: object) -> None:
         """Switch to the given view identified by `page` enum.
