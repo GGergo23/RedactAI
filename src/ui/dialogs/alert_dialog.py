@@ -72,10 +72,8 @@ class AlertDialog(QDialog):
         )
         icon = self.style().standardIcon(icon_kind)
         icon_label.setPixmap(icon.pixmap(40, 40))
-        icon_alignment = (
-            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter
-        )
-        icon_label.setAlignment(icon_alignment)
+        icon_align = Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter
+        icon_label.setAlignment(icon_align)
 
         text_column = QVBoxLayout()
         text_column.setSpacing(8)

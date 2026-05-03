@@ -73,8 +73,9 @@ class MainWindow(QMainWindow):
             set_launch_extra = getattr(target, "setLaunchExtra", None)
             if not callable(set_launch_extra):
                 raise TypeError(
-                    f"View for page {page.value!r} does not support navigation "
-                    "parameters; expected a callable setLaunchExtra(**kwargs)."
+                    f"View for page {page.value!r} does not "
+                    "support navigation parameters; expected a "
+                    "callable setLaunchExtra(**kwargs)."
                 )
             set_launch_extra(**kwargs)
 
