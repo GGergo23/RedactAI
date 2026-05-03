@@ -6,6 +6,8 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QMouseEvent
 from PyQt6.QtWidgets import QLabel, QStyle, QVBoxLayout, QWidget
 
+from src.ui.dialogs.alert_dialog import AlertSeverity, show_alert
+
 
 class DropTargetWidget(QWidget):
     """Interactive drop target that also supports click-to-open."""
@@ -101,5 +103,14 @@ class DropTargetWidget(QWidget):
         self.style().unpolish(self)
         self.style().polish(self)
         self.update()
+
+        if not files:
+            show_alert(
+                self,
+                "No valid files were detected in the drop.",
+                severity=AlertSeverity.WARNING,
+                title="No files found",
+            )
+            return
 
         self.on_result(files)
