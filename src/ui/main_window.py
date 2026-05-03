@@ -1,7 +1,7 @@
 """Main application window with view management."""
 
-from pathlib import Path
 from enum import Enum
+from pathlib import Path
 
 from PyQt6.QtWidgets import QMainWindow, QStackedWidget
 

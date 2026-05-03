@@ -2,8 +2,8 @@
 
 from typing import Callable
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
 
 
 class PlaceholderView(QWidget):
