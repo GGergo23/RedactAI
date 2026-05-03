@@ -1,10 +1,10 @@
 """Main application window with view management."""
 
 from enum import Enum
-from pathlib import Path
 
 from PyQt6.QtWidgets import QMainWindow, QStackedWidget
 
+from src.persistance.resource_loader import ResourceLoader
 from src.ui.views.homepage import HomePage
 from src.ui.views.placeholder import PlaceholderView
 
@@ -49,9 +49,13 @@ class MainWindow(QMainWindow):
 
     def _apply_theme(self) -> None:
         """Load and apply the shared application theme."""
-        theme_file = Path(__file__).parent / "styles" / "theme.qss"
-        if theme_file.exists():
-            self.setStyleSheet(theme_file.read_text(encoding="utf-8"))
+        resource_path = "src/ui/styles/theme.qss"
+        theme_file = ResourceLoader.get_resource_path(resource_path)
+
+        if not theme_file.exists():
+            raise FileNotFoundError(f"Theme file not found at: {theme_file}")
+        
+        self.setStyleSheet(theme_file.read_text(encoding="utf-8"))
 
     def go_to(self, page: Page, **kwargs: object) -> None:
         """Switch to the given view identified by `page` enum.
