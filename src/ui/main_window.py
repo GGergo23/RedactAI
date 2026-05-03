@@ -1,0 +1,59 @@
+"""Main application window with view management."""
+
+from pathlib import Path
+from enum import Enum
+
+from PyQt6.QtWidgets import QMainWindow, QStackedWidget
+
+from src.ui.views.homepage import HomePage
+from src.ui.views.placeholder import PlaceholderView
+
+
+class Page(Enum):
+    HOME = "home"
+    PLACEHOLDER = "placeholder"
+
+
+class MainWindow(QMainWindow):
+    """Main application window with stacked layout for different views."""
+
+    def __init__(self) -> None:
+        """Initialize the main window."""
+        super().__init__()
+        self.setWindowTitle("RedactAI")
+        self.resize(1200, 800)
+        self.setMinimumSize(900, 620)
+
+        self._apply_theme()
+
+        # Create stacked widget for view management
+        self.stacked_widget = QStackedWidget()
+        self.setCentralWidget(self.stacked_widget)
+
+        # Create views
+        self.homepage = HomePage(lambda: self.go_to(Page.PLACEHOLDER))
+        self.placeholder = PlaceholderView(lambda: self.go_to(Page.HOME))
+
+        # Register views in a mapping for unified navigation
+        self.views = {
+            Page.HOME: self.homepage,
+            Page.PLACEHOLDER: self.placeholder,
+        }
+
+        # Add to stacked widget
+        self.stacked_widget.addWidget(self.homepage)
+        self.stacked_widget.addWidget(self.placeholder)
+
+        # Show homepage first
+        self.stacked_widget.setCurrentWidget(self.homepage)
+
+    def _apply_theme(self) -> None:
+        """Load and apply the shared application theme."""
+        theme_file = Path(__file__).parent / "styles" / "theme.qss"
+        self.setStyleSheet(theme_file.read_text(encoding="utf-8"))
+
+    def go_to(self, page: Page) -> None:
+        """Switch to the given view identified by `page` enum."""
+        target = self.views.get(page)
+        if target is not None:
+            self.stacked_widget.setCurrentWidget(target)

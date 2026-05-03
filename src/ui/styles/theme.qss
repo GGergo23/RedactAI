@@ -1,0 +1,61 @@
+QMainWindow {
+    background-color: #ffffff;
+}
+
+QWidget {
+    background-color: #202020;
+    color: #ff00ff;
+    font-family: "Helvetica Neue", "Segoe UI", sans-serif;
+}
+
+QLabel[role="title"] {
+    color: #bfbfbf;
+    font-size: 46px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding-bottom: 10px;
+}
+
+QLabel[role="subtitle"] {
+    color: #c2c2c2;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+QWidget[role="drag-area"] {
+    background-color: #585858;
+    border: 8px dashed #f76b6b;
+    border-radius: 12px;
+}
+
+QLabel[role="drag-title"] {
+    background: transparent;
+    color: #ececec;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+QLabel[role="drag-subtitle"] {
+    background: transparent;
+    color: #d0d0d0;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+QLabel[role="drag-icon"] {
+    background: transparent;
+}
+
+QPushButton[role="primary"] {
+    background-color: #f76b6b;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+QPushButton[role="primary"]:hover {
+    background-color: #ff8c8c;
+}
