@@ -10,7 +10,7 @@ dependencies = [
     "pyqt6>=6.11.0",
     "pytest>=9.0.3",
     "pytest-cov>=4.1.0",
-
+    "spacy>=3.8.13",
 ]
 
 [project.scripts]
@@ -27,7 +27,7 @@ packages = ["src"]
 "" = "."
 
 [tool.black]
-line-length = 120
+line-length = 88
 target-version = ['py314']
 include = '\.pyi?$'
 extend-exclude = '''
@@ -46,7 +46,7 @@ extend-exclude = '''
 
 [tool.isort]
 profile = "black"
-line_length = 120
+line_length = 88
 skip_glob = [".venv", "venv"]
 
 [tool.pytest.ini_options]
