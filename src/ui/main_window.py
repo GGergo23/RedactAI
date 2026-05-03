@@ -64,4 +64,3 @@ class MainWindow(QMainWindow):
             if hasattr(target, "setLaunchExtra"):
                 target.setLaunchExtra(**kwargs)
             self.stacked_widget.setCurrentWidget(target)
-

@@ -28,6 +28,10 @@ QWidget[role="drag-area"] {
     border-radius: 12px;
 }
 
+QWidget[role="drag-area"][drag-hover="true"] {
+    background-color: #a9a9a9;
+}
+
 QLabel[role="drag-title"] {
     background: transparent;
     color: #ececec;

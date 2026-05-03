@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import QLabel, QStyle, QVBoxLayout, QWidget
 class DropTargetWidget(QWidget):
     """Interactive drop target that also supports click-to-open."""
 
-    def __init__(self, on_click: Callable[[], None], on_result: Callable[[list[str]], None]) -> None:
+    def __init__(self, on_click: Callable, on_result: Callable) -> None:
         """Initialize the drop target widget.
 
         Args:
@@ -23,7 +23,9 @@ class DropTargetWidget(QWidget):
         self.setMinimumHeight(300)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setProperty("role", "drag-area")
+        self.setProperty("drag-hover", "false")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setAcceptDrops(True)
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -63,3 +65,41 @@ class DropTargetWidget(QWidget):
             event.accept()
             return
         super().mousePressEvent(event)
+
+    def dragEnterEvent(self, event) -> None:  # type: ignore[override]
+        """Accept drag if it contains URLs (files)."""
+        mime = event.mimeData()
+        if mime.hasUrls():
+            event.acceptProposedAction()
+            self.setProperty("drag-hover", "true")
+            self.style().unpolish(self)
+            self.style().polish(self)
+            self.update()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event) -> None:  # type: ignore[override]
+        event.accept()
+
+    def dragLeaveEvent(self, event) -> None:  # type: ignore[override]
+        self.setProperty("drag-hover", "false")
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
+
+    def dropEvent(self, event) -> None:  # type: ignore[override]
+        """Handle dropped files and call the on_drop callback if present."""
+        mime = event.mimeData()
+        files: list[str] = []
+        if mime.hasUrls():
+            for url in mime.urls():
+                if url.isLocalFile():
+                    files.append(url.toLocalFile())
+
+        # reset hover state
+        self.setProperty("drag-hover", "false")
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
+
+        self.on_result(files)

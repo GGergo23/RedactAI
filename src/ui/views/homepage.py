@@ -3,7 +3,12 @@
 from typing import Callable
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFileDialog, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import (
+    QFileDialog,
+    QLabel,
+    QVBoxLayout,
+    QWidget,
+)
 
 from src.ui.views.drop_target_widget import DropTargetWidget
 
@@ -11,12 +16,12 @@ from src.ui.views.drop_target_widget import DropTargetWidget
 class HomePage(QWidget):
     """Homepage view component."""
 
-    def __init__(self, transition_page_fn: Callable[[str], None]) -> None:
+    def __init__(self, transition_page_fn: Callable) -> None:
         """
         Initialize the homepage view.
 
         Args:
-            transition_page: Callback function for transitioning to other pages.
+            transition_page: Function for transitioning to other pages.
         """
         super().__init__()
         self.transition_page_fn = transition_page_fn
@@ -63,8 +68,10 @@ class HomePage(QWidget):
             image_filter,
         )
         return files
-    
+
     def handle_files(self, files: list[str]) -> None:
-        """Handle the list of files obtained from drag-and-drop or file dialog."""
-        from src.ui.main_window import Page  # Import here to avoid circular dependency
+        """Process the file paths obtained from drag-n-drop or file picker."""
+        # Import here to avoid circular dependency
+        from src.ui.main_window import Page
+
         self.transition_page_fn(Page.PLACEHOLDER, files=files)
