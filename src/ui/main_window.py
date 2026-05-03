@@ -59,9 +59,23 @@ class MainWindow(QMainWindow):
         Args:
             page: The page to navigate to.
             **kwargs: Additional parameters for the page.
+
+        Raises:
+            ValueError: If `page` is not a registered view.
+            TypeError: If navigation parameters are provided for a view that
+                does not support receiving them.
         """
         target = self.views.get(page)
-        if target is not None:
-            if hasattr(target, "setLaunchExtra"):
-                target.setLaunchExtra(**kwargs)
-            self.stacked_widget.setCurrentWidget(target)
+        if target is None:
+            raise ValueError(f"Unknown page: {page!r}")
+
+        if kwargs:
+            set_launch_extra = getattr(target, "setLaunchExtra", None)
+            if not callable(set_launch_extra):
+                raise TypeError(
+                    f"View for page {page.value!r} does not support navigation "
+                    "parameters; expected a callable setLaunchExtra(**kwargs)."
+                )
+            set_launch_extra(**kwargs)
+
+        self.stacked_widget.setCurrentWidget(target)
