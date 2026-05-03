@@ -37,7 +37,7 @@ jobs:
         run: uv pip install pyinstaller
 
       - name: Build with PyInstaller
-        run: uv run pyinstaller --onedir --name redactai --windowed src/main.py
+        run: uv run pyinstaller --onedir --name redactai --windowed --add-data "src/ui/styles:src/ui/styles" src/main.py
 
       - name: Create archive (Linux/macOS)
         if: runner.os != 'Windows'
