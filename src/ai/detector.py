@@ -15,7 +15,8 @@ class ModelLoadError(RuntimeError):
     """Raised when the local spaCy model cannot be loaded."""
 
 
-DEFAULT_MODEL_PATH = Path("assets/models/en_core_web_sm")
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+DEFAULT_MODEL_PATH = _REPO_ROOT / "assets" / "models" / "en_core_web_sm"
 
 
 class NLPDetector:
