@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from unittest.mock import patch
 
 import pytest
@@ -9,7 +10,11 @@ from PIL import Image
 
 from src.ai.ocr import ocr
 from src.ai.types import BoundingBox, OCRResult, TextDetection
-from tests.ai.conftest import pytesseract_available
+
+pytesseract_available = pytest.mark.skipif(
+    shutil.which("tesseract") is None,
+    reason="Tesseract OCR not installed",
+)
 
 
 def _make_tesseract_dict(rows: list[dict]) -> dict:

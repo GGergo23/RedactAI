@@ -2,15 +2,8 @@
 
 from __future__ import annotations
 
-import shutil
-
 import pytest
 from PIL import Image, ImageDraw, ImageFont
-
-pytesseract_available = pytest.mark.skipif(
-    shutil.which("tesseract") is None,
-    reason="Tesseract OCR not installed",
-)
 
 
 def _get_large_font(size: int = 36) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
