@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 from PIL import Image
 
-from src.ai.ocr import extract_text, run_ocr
+from src.ai.ocr import ocr
 from src.ai.types import BoundingBox, OCRResult, TextDetection
 from tests.ai.conftest import pytesseract_available
 
@@ -206,66 +206,69 @@ WITH_EMPTY_TEXT = _make_tesseract_dict(
 # ---------------------------------------------------------------------------
 
 
-class TestRunOcrReturnType:
+class TestOcrReturnType:
     @patch("src.ai.ocr.pytesseract.image_to_data", return_value=TWO_WORDS_SAME_LINE)
-    def test_returns_ocr_result(self, mock_data):
+    def test_returns_list_of_ocr_results(self, mock_data):
         img = Image.new("RGB", (100, 50))
-        result = run_ocr([img])
-        assert isinstance(result, OCRResult)
-        assert len(result.detections) == 1
-        assert isinstance(result.detections[0], TextDetection)
+        result = ocr([img])
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert isinstance(result[0], OCRResult)
+        assert len(result[0].detections) == 1
+        assert isinstance(result[0].detections[0], TextDetection)
 
     @patch("src.ai.ocr.pytesseract.image_to_data", return_value=TWO_WORDS_SAME_LINE)
     def test_multiple_images(self, mock_data):
         imgs = [Image.new("RGB", (100, 50)), Image.new("RGB", (100, 50))]
-        result = run_ocr(imgs)
-        assert len(result.detections) == 2
+        result = ocr(imgs)
+        assert len(result) == 2
+        assert all(isinstance(r, OCRResult) for r in result)
 
 
 class TestTextAssembly:
     @patch("src.ai.ocr.pytesseract.image_to_data", return_value=TWO_WORDS_SAME_LINE)
     def test_space_between_words_on_same_line(self, mock_data):
-        result = run_ocr([Image.new("RGB", (100, 50))])
-        assert result.detections[0].text == "Hello World"
+        result = ocr([Image.new("RGB", (100, 50))])
+        assert result[0].detections[0].text == "Hello World"
 
     @patch("src.ai.ocr.pytesseract.image_to_data", return_value=TWO_LINES_SAME_BLOCK)
     def test_newline_between_lines(self, mock_data):
-        result = run_ocr([Image.new("RGB", (100, 50))])
-        assert result.detections[0].text == "Line1\nLine2"
+        result = ocr([Image.new("RGB", (100, 50))])
+        assert result[0].detections[0].text == "Line1\nLine2"
 
     @patch("src.ai.ocr.pytesseract.image_to_data", return_value=TWO_BLOCKS)
     def test_double_newline_between_blocks(self, mock_data):
-        result = run_ocr([Image.new("RGB", (100, 50))])
-        assert result.detections[0].text == "BlockA\n\nBlockB"
+        result = ocr([Image.new("RGB", (100, 50))])
+        assert result[0].detections[0].text == "BlockA\n\nBlockB"
 
 
 class TestCharOffsets:
     @patch("src.ai.ocr.pytesseract.image_to_data", return_value=TWO_WORDS_SAME_LINE)
     def test_offsets_on_same_line(self, mock_data):
-        result = run_ocr([Image.new("RGB", (100, 50))])
-        words = result.detections[0].words
+        result = ocr([Image.new("RGB", (100, 50))])
+        words = result[0].detections[0].words
         assert words[0].char_offset == 0  # "Hello" starts at 0
         assert words[1].char_offset == 6  # "World" starts at 6 (after "Hello ")
 
     @patch("src.ai.ocr.pytesseract.image_to_data", return_value=TWO_LINES_SAME_BLOCK)
     def test_offsets_across_lines(self, mock_data):
-        result = run_ocr([Image.new("RGB", (100, 50))])
-        words = result.detections[0].words
+        result = ocr([Image.new("RGB", (100, 50))])
+        words = result[0].detections[0].words
         assert words[0].char_offset == 0  # "Line1"
         assert words[1].char_offset == 6  # "Line2" (after "Line1\n")
 
     @patch("src.ai.ocr.pytesseract.image_to_data", return_value=TWO_BLOCKS)
     def test_offsets_across_blocks(self, mock_data):
-        result = run_ocr([Image.new("RGB", (100, 50))])
-        words = result.detections[0].words
+        result = ocr([Image.new("RGB", (100, 50))])
+        words = result[0].detections[0].words
         assert words[0].char_offset == 0  # "BlockA"
         assert words[1].char_offset == 8  # "BlockB" (after "BlockA\n\n")
 
     @patch("src.ai.ocr.pytesseract.image_to_data", return_value=TWO_WORDS_SAME_LINE)
     def test_char_offset_invariant(self, mock_data):
         """The fundamental contract: text[offset:offset+len] == word.text."""
-        result = run_ocr([Image.new("RGB", (100, 50))])
-        det = result.detections[0]
+        result = ocr([Image.new("RGB", (100, 50))])
+        det = result[0].detections[0]
         for word in det.words:
             assert det.text[word.char_offset : word.char_offset + len(word.text)] == word.text
 
@@ -273,45 +276,45 @@ class TestCharOffsets:
 class TestBoundingBoxes:
     @patch("src.ai.ocr.pytesseract.image_to_data", return_value=TWO_WORDS_SAME_LINE)
     def test_bounding_box_values_preserved(self, mock_data):
-        result = run_ocr([Image.new("RGB", (100, 50))])
-        box = result.detections[0].words[0].bounding_box
+        result = ocr([Image.new("RGB", (100, 50))])
+        box = result[0].detections[0].words[0].bounding_box
         assert box == BoundingBox(x=10, y=20, width=50, height=15)
 
 
 class TestFiltering:
     @patch("src.ai.ocr.pytesseract.image_to_data", return_value=WITH_LOW_CONF)
     def test_filters_negative_confidence(self, mock_data):
-        result = run_ocr([Image.new("RGB", (100, 50))])
-        words = result.detections[0].words
+        result = ocr([Image.new("RGB", (100, 50))])
+        words = result[0].detections[0].words
         assert len(words) == 1
         assert words[0].text == "real"
 
     @patch("src.ai.ocr.pytesseract.image_to_data", return_value=WITH_EMPTY_TEXT)
     def test_filters_empty_and_whitespace_text(self, mock_data):
-        result = run_ocr([Image.new("RGB", (100, 50))])
-        words = result.detections[0].words
+        result = ocr([Image.new("RGB", (100, 50))])
+        words = result[0].detections[0].words
         assert len(words) == 1
         assert words[0].text == "visible"
 
     @patch("src.ai.ocr.pytesseract.image_to_data", return_value=EMPTY_DICT)
     def test_empty_image_returns_empty_detection(self, mock_data):
-        result = run_ocr([Image.new("RGB", (100, 50))])
-        det = result.detections[0]
+        result = ocr([Image.new("RGB", (100, 50))])
+        det = result[0].detections[0]
         assert det.text == ""
         assert det.words == []
 
 
-class TestExtractText:
+class TestOcrTextContent:
     @patch("src.ai.ocr.pytesseract.image_to_data", return_value=TWO_WORDS_SAME_LINE)
-    def test_returns_list_of_strings(self, mock_data):
-        result = extract_text([Image.new("RGB", (100, 50))])
-        assert result == ["Hello World"]
+    def test_detection_contains_expected_text(self, mock_data):
+        result = ocr([Image.new("RGB", (100, 50))])
+        assert result[0].detections[0].text == "Hello World"
 
 
 class TestInputValidation:
     def test_non_image_raises_type_error(self):
         with pytest.raises(TypeError, match="Expected PIL.Image.Image"):
-            run_ocr(["not_an_image"])
+            ocr(["not_an_image"])
 
 
 # ---------------------------------------------------------------------------
@@ -323,8 +326,8 @@ class TestInputValidation:
 @pytest.mark.integration
 class TestOCRIntegration:
     def test_ocr_on_generated_image(self, sample_ocr_image):
-        result = run_ocr([sample_ocr_image])
-        det = result.detections[0]
+        result = ocr([sample_ocr_image])
+        det = result[0].detections[0]
         text_lower = det.text.lower()
         assert "hello" in text_lower
         assert "world" in text_lower
@@ -334,14 +337,14 @@ class TestOCRIntegration:
             assert word.bounding_box.height > 0
 
     def test_multiline_ocr(self, multiline_ocr_image):
-        result = run_ocr([multiline_ocr_image])
-        det = result.detections[0]
+        result = ocr([multiline_ocr_image])
+        det = result[0].detections[0]
         assert "\n" in det.text
 
     def test_char_offset_contract(self, sample_ocr_image):
         """Every word's char_offset must correctly index into the full text."""
-        result = run_ocr([sample_ocr_image])
-        det = result.detections[0]
+        result = ocr([sample_ocr_image])
+        det = result[0].detections[0]
         for word in det.words:
             actual = det.text[word.char_offset : word.char_offset + len(word.text)]
             assert actual == word.text, (
