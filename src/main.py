@@ -1,20 +1,15 @@
 import sys
 
-from PyQt6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QApplication
+
+from src.ui.main_window import MainWindow
 
 
 def main() -> int:
+    """Entry point for the RedactAI application."""
     app = QApplication(sys.argv)
 
-    window = QWidget()
-    window.setWindowTitle("PyQt6 Hello World")
-
-    layout = QVBoxLayout()
-    label = QLabel("Hello, World!")
-    layout.addWidget(label)
-    window.setLayout(layout)
-
-    window.resize(300, 100)
+    window = MainWindow()
     window.show()
 
     return app.exec()
