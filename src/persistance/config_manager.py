@@ -44,8 +44,7 @@ class ConfigManager:
             "redact_faces": True,
             "redact_phone_numbers": True,
             "redact_emails": True,
-            "default_save_directory": str(
-                Path.home() / "Documents" / "RedactAI"),
+            "default_save_directory": str(Path.home() / "Documents" / "RedactAI"),
         }
 
     def get_default_save_directory(self) -> Path:
