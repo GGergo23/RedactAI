@@ -3,11 +3,13 @@ from pathlib import Path
 import pytest
 
 import src.ai.detector as detector_module
-from src.ai.detector import DEFAULT_MODEL_PATH, ModelLoadError, NLPDetector
+from src.ai.detector import ModelLoadError, NLPDetector
 from src.ai.types import NLPEntity
+from src.persistance.resource_loader import ResourceLoader
 
 
 def test_entity_contract_fields():
+    source_text = "John Smith"
     entity = NLPEntity(
         label="PERSON",
         text="John Smith",
@@ -23,7 +25,7 @@ def test_entity_contract_fields():
     assert entity.end == 10
     assert entity.confidence == 0.87
     assert entity.source == "spacy"
-    assert entity.text[entity.start : entity.end] == entity.text
+    assert source_text[entity.start : entity.end] == entity.text
 
 
 def test_entity_contract_is_frozen():
@@ -43,7 +45,8 @@ def test_entity_contract_is_frozen():
 def test_detector_default_model_path_points_under_assets_models():
     detector = NLPDetector()
 
-    assert detector.model_path == DEFAULT_MODEL_PATH
+    expected_path = ResourceLoader.get_resource_path("assets/models/en_core_web_sm")
+    assert detector.model_path == expected_path
 
 
 def test_loads_and_caches_local_model(monkeypatch, tmp_path):

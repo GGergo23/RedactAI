@@ -86,6 +86,8 @@ class NLPEntity:
     end: int
     confidence: float = 1.0
     source: str = "spacy"
+
+
 @dataclass(frozen=True)
 class BoundingBox:
     """Axis-aligned bounding box in pixel coordinates."""
@@ -140,4 +142,3 @@ class OCRResult:
     """OCR result for a single image. Contains all ``TextDetection`` objects found in that image."""
 
     detections: list[TextDetection]
->>>>>>> origin/main

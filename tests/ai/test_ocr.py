@@ -275,7 +275,10 @@ class TestCharOffsets:
         result = ocr([Image.new("RGB", (100, 50))])
         det = result[0].detections[0]
         for word in det.words:
-            assert det.text[word.char_offset : word.char_offset + len(word.text)] == word.text
+            assert (
+                det.text[word.char_offset : word.char_offset + len(word.text)]
+                == word.text
+            )
 
 
 class TestBoundingBoxes:

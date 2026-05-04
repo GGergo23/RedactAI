@@ -9,14 +9,11 @@ import spacy
 from spacy.language import Language
 
 from src.ai.types import NLPEntity
+from src.persistance.resource_loader import ResourceLoader
 
 
 class ModelLoadError(RuntimeError):
     """Raised when the local spaCy model cannot be loaded."""
-
-
-_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-DEFAULT_MODEL_PATH = _REPO_ROOT / "assets" / "models" / "en_core_web_sm"
 
 
 class NLPDetector:
@@ -24,7 +21,9 @@ class NLPDetector:
 
     def __init__(self, model_path: Path | str | None = None) -> None:
         if model_path is None:
-            self._model_path = DEFAULT_MODEL_PATH
+            self._model_path = ResourceLoader.get_resource_path(
+                "assets/models/en_core_web_sm"
+            )
         else:
             self._model_path = Path(model_path)
         self._nlp: Language | None = None

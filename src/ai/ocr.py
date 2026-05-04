@@ -65,7 +65,9 @@ def _extract_text(images: list[Image.Image], lang: str = "eng") -> list[str]:
 
 def _process_single_image(image: Image.Image, lang: str) -> TextDetection:
     """Extract text and word-level bounding boxes from a single image."""
-    data = pytesseract.image_to_data(image, lang=lang, output_type=pytesseract.Output.DICT)
+    data = pytesseract.image_to_data(
+        image, lang=lang, output_type=pytesseract.Output.DICT
+    )
 
     n_entries = len(data["text"])
 
@@ -93,7 +95,9 @@ def _process_single_image(image: Image.Image, lang: str) -> TextDetection:
     if not rows:
         return TextDetection(text="", words=[])
 
-    rows.sort(key=lambda r: (r["block_num"], r["par_num"], r["line_num"], r["word_num"]))
+    rows.sort(
+        key=lambda r: (r["block_num"], r["par_num"], r["line_num"], r["word_num"])
+    )
 
     text_parts: list[str] = []
     words: list[OCRWord] = []
@@ -125,7 +129,9 @@ def _process_single_image(image: Image.Image, lang: str) -> TextDetection:
             words.append(
                 OCRWord(
                     text=w["text"],
-                    bounding_box=BoundingBox(x=w["left"], y=w["top"], width=w["width"], height=w["height"]),
+                    bounding_box=BoundingBox(
+                        x=w["left"], y=w["top"], width=w["width"], height=w["height"]
+                    ),
                     confidence=w["conf"],
                     char_offset=char_pos,
                 )
