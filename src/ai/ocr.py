@@ -28,7 +28,7 @@ from PIL import Image
 from src.ai.types import BoundingBox, OCRResult, OCRWord, TextDetection
 
 
-def run_ocr(images: list[Image.Image], lang: str = "eng") -> OCRResult:
+def ocr(images: list[Image.Image], lang: str = "eng") -> list[OCRResult]:
     """Run Tesseract OCR on a list of images.
 
     Args:
@@ -36,7 +36,7 @@ def run_ocr(images: list[Image.Image], lang: str = "eng") -> OCRResult:
         lang: Tesseract language code (default ``"eng"``).
 
     Returns:
-        An ``OCRResult`` containing one ``TextDetection`` per input image.
+        A list of ``OCRResult`` objects, one per input image.
 
     Raises:
         TypeError: If any element in *images* is not a ``PIL.Image.Image``.
@@ -46,11 +46,10 @@ def run_ocr(images: list[Image.Image], lang: str = "eng") -> OCRResult:
         if not isinstance(img, Image.Image):
             raise TypeError(f"Expected PIL.Image.Image, got {type(img).__name__}")
 
-    detections = [_process_single_image(img, lang) for img in images]
-    return OCRResult(detections=detections)
+    return [OCRResult(detections=[_process_single_image(img, lang)]) for img in images]
 
 
-def extract_text(images: list[Image.Image], lang: str = "eng") -> list[str]:
+def _extract_text(images: list[Image.Image], lang: str = "eng") -> list[str]:
     """Convenience wrapper that returns only the assembled text strings.
 
     Args:
@@ -60,8 +59,8 @@ def extract_text(images: list[Image.Image], lang: str = "eng") -> list[str]:
     Returns:
         A list of strings, one per input image.
     """
-    result = run_ocr(images, lang=lang)
-    return [d.text for d in result.detections]
+    results = ocr(images, lang=lang)
+    return [d.text for r in results for d in r.detections]
 
 
 def _process_single_image(image: Image.Image, lang: str) -> TextDetection:

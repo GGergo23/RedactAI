@@ -62,6 +62,6 @@ class TextDetection:
 
 @dataclass(frozen=True)
 class OCRResult:
-    """Top-level return type from ``run_ocr``. One ``TextDetection`` per input image."""
+    """OCR result for a single image. Contains all ``TextDetection`` objects found in that image."""
 
     detections: list[TextDetection]
