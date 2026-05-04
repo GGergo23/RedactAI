@@ -40,4 +40,15 @@ class ConfigManager:
             "redact_addresses": True,
             "confidence_threshold": 0.8,
             "output_format": "png",
+            "allow_usage_statistics": False,
+            "redact_faces": True,
+            "redact_phone_numbers": True,
+            "redact_emails": True,
+            "default_save_directory": str(
+                Path.home() / "Documents" / "RedactAI"),
         }
+
+    def get_default_save_directory(self) -> Path:
+        """Return default directory for
+        saving outputs (user Documents folder)."""
+        return Path.home() / "Documents" / "RedactAI"
