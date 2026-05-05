@@ -63,6 +63,12 @@ def test_validation_corpus_roundtrip():
         if ents:
             _assert_roundtrip_and_sorted(text, ents)
 
+        # Negative corpus cases must not produce any detections.
+        if not expected:
+            msg = f"Expected no detections in {text!r}, but got {ents!r}"
+            assert not ents, msg
+            continue
+
         # For each expected entity (label + text) assert existence
         for exp in expected:
             if exp["label"] == "PHONE":
