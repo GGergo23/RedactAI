@@ -73,6 +73,8 @@ class NLPDetector:
             norm_label = _normalize_label(entity.label_)
             if norm_label is None:
                 continue
+            if _is_noise_entity(norm_label, entity.text):
+                continue
             spacy_entities.append(
                 NLPEntity(
                     label=norm_label,
@@ -128,10 +130,13 @@ def _regex_entities(text: str) -> list[NLPEntity]:
             )
         )
     for m in _PHONE_RE.finditer(text):
+        phone_text = m.group(0)
+        if phone_text.isdigit():
+            continue
         candidates.append(
             NLPEntity(
                 label="PHONE",
-                text=m.group(0),
+                text=phone_text,
                 start=m.start(),
                 end=m.end(),
                 confidence=1.0,
@@ -178,3 +183,13 @@ def _normalize_label(label: str) -> str | None:
         "DATE": "DATE",
     }
     return mapping.get(label)
+
+
+def _is_noise_entity(label: str, text: str) -> bool:
+    """Filter known false positives from the spaCy model."""
+
+    if label == "ORG" and text.strip().upper() in {"PII", "OCR"}:
+        return True
+    if label == "DATE" and text.strip().isdigit():
+        return True
+    return False

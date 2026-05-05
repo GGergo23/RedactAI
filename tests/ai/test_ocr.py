@@ -355,7 +355,9 @@ class TestOCRIntegration:
         det = result[0].detections[0]
         for word in det.words:
             actual = det.text[word.char_offset : word.char_offset + len(word.text)]
-            assert actual == word.text, (
-                f"Contract violation: text[{word.char_offset}:{word.char_offset + len(word.text)}] "
-                f"== {actual!r}, expected {word.text!r}"
+            expected = word.text
+            assert actual == expected, (
+                "Contract violation: "
+                f"text[{word.char_offset}:{word.char_offset + len(expected)}] "
+                f"== {actual!r}, expected {expected!r}"
             )
