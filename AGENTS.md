@@ -23,6 +23,55 @@ uv sync
 uv shell
 ```
 
+## First-time model setup (required once per machine)
+
+The NLP detector requires the `en_core_web_sm` spaCy model, which must be downloaded and stored locally in `assets/models/` (not tracked in git due to size).
+
+```bash
+# Download the spaCy model
+uv run python -c "
+import urllib.request
+import zipfile
+from pathlib import Path
+
+model_dir = Path('assets/models')
+model_dir.mkdir(parents=True, exist_ok=True)
+
+url = 'https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl'
+wheel_path = model_dir / 'en_core_web_sm-3.8.0-py3-none-any.whl'
+
+print('Downloading spaCy model...')
+urllib.request.urlretrieve(url, wheel_path)
+
+print('Extracting...')
+with zipfile.ZipFile(wheel_path, 'r') as z:
+    z.extractall(model_dir)
+
+# Flatten the extracted directory structure
+versioned = model_dir / 'en_core_web_sm' / 'en_core_web_sm-3.8.0'
+if versioned.exists():
+    import shutil
+    for item in versioned.iterdir():
+        dest = model_dir / 'en_core_web_sm' / item.name
+        if dest.exists():
+            if dest.is_dir():
+                shutil.rmtree(dest)
+            else:
+                dest.unlink()
+        shutil.move(str(item), str(dest))
+    versioned.rmdir()
+
+print('Model ready at assets/models/en_core_web_sm')
+"
+```
+
+Verify the setup:
+```bash
+uv run python -c "from src.ai.detector import NLPDetector; NLPDetector().detect('test')"
+```
+
+If successful, you'll see the detector load without errors.
+
 After development, you can run tests and linting with:
 ```bash
 uv run pytest

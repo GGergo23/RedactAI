@@ -1,0 +1,20 @@
+{"id":"00-empty","text":"","expected":[]}
+{"id":"01-whitespace","text":"   \n\t","expected":[]}
+{"id":"02-no-pii","text":"This document contains no PII, just ordinary text.","expected":[]}
+{"id":"03-email_person","text":"Contact Alice Brown at alice.brown@email.com.","expected":[{"label":"EMAIL","text":"alice.brown@email.com"},{"label":"PERSON","text":"Alice Brown"}]}
+{"id":"04-phone","text":"Call +1-555-123-4567 for support.","expected":[{"label":"PHONE","text":"+1-555-123-4567"}]}
+{"id":"05-iban","text":"IBAN: DE89370400440532013000 is an example.","expected":[{"label":"IBAN","text":"DE89370400440532013000"}]}
+{"id":"06-person_org","text":"Meet John Doe, CEO of Acme Corp.","expected":[{"label":"PERSON","text":"John Doe"},{"label":"ORG","text":"Acme Corp"}]}
+{"id":"07-overlap_email_in_name","text":"Email inside name: Alice alice@example.com Brown.","expected":[{"label":"EMAIL","text":"alice@example.com"}]}
+{"id":"08-multiline","text":"First line.\nSecond line mentions Jane Smith and jane.smith+tag@example.com.","expected":[{"label":"PERSON","text":"Jane Smith"},{"label":"EMAIL","text":"jane.smith+tag@example.com"}]}
+{"id":"09-phone_parens","text":"Support: (555) 123-4567 or +44 20 7946 0958.","expected":[{"label":"PHONE","text":"(555) 123-4567"},{"label":"PHONE","text":"+44 20 7946 0958"}]}
+{"id":"10-email_subdomain","text":"Reach at help@sub.example.co.uk for assistance.","expected":[{"label":"EMAIL","text":"help@sub.example.co.uk"}]}
+{"id":"11-iban_lowercase","text":"iban example: gb82west12345698765432","expected":[{"label":"IBAN","text":"gb82west12345698765432"}]}
+{"id":"12-date_person","text":"On 2026-04-30, Dr. Emily Stone joined the board.","expected":[{"label":"DATE","text":"2026-04-30"},{"label":"PERSON","text":"Emily Stone"}]}
+{"id":"13-noisy_chars","text":"Weird chars in OCR may appear but should be safe.","expected":[]}
+{"id":"14-iban_and_phone","text":"Payment details: DE89370400440532013000, backup +49-89-636-48018.","expected":[{"label":"IBAN","text":"DE89370400440532013000"},{"label":"PHONE","text":"+49-89-636-48018"}]}
+{"id":"15-email_with_plus","text":"Signup: user+label@example.com is used for tracking.","expected":[{"label":"EMAIL","text":"user+label@example.com"}]}
+{"id":"16-adjacent_entities","text":"AliceBrownalice@example.com (no spaces) should still find the email.","expected":[{"label":"EMAIL","text":"alice@example.com"}]}
+{"id":"17-long_text","text":"Dear team:\nPlease contact our representative Sarah Connor at sarah.connor@example.org for queries.\nRegards.\n","expected":[{"label":"PERSON","text":"Sarah Connor"},{"label":"EMAIL","text":"sarah.connor@example.org"}]}
+{"id":"18-ambiguous_numbers","text":"Reference 1234567890 might be mistaken for phone but should not match strict patterns.","expected":[]}
+{"id":"19-overlap_iban_fragment","text":"IBAN: DE89370400440532013000 contains digits that could look like phone 00440532013000.","expected":[{"label":"IBAN","text":"DE89370400440532013000"}]}

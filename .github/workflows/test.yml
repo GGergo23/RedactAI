@@ -29,10 +29,13 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      - name: Ensure assets/models directory exists
+        run: mkdir -p assets/models
+
       - name: Lint with flake8
         run: |
           uv run flake8 src tests --count --select=E9,F63,F7,F82 --show-source --statistics
-          uv run flake8 src tests --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
+          uv run flake8 src tests --count --exit-zero --max-complexity=10 --statistics
 
       - name: Check formatting with black
         run: uv run black --check src tests
@@ -44,6 +47,42 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libegl1 libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 xvfb tesseract-ocr tesseract-ocr-eng
+
+      - name: Download spaCy model
+        run: |
+          uv run python - <<'PY'
+          import urllib.request
+          import zipfile
+          from pathlib import Path
+
+          model_dir = Path('assets/models')
+          model_dir.mkdir(parents=True, exist_ok=True)
+
+          url = 'https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl'
+          wheel_path = model_dir / 'en_core_web_sm-3.8.0-py3-none-any.whl'
+
+          print('Downloading spaCy model...')
+          urllib.request.urlretrieve(url, wheel_path)
+
+          print('Extracting...')
+          with zipfile.ZipFile(wheel_path, 'r') as z:
+            z.extractall(model_dir)
+
+          versioned = model_dir / 'en_core_web_sm' / 'en_core_web_sm-3.8.0'
+          if versioned.exists():
+            import shutil
+            for item in versioned.iterdir():
+              dest = model_dir / 'en_core_web_sm' / item.name
+              if dest.exists():
+                if dest.is_dir():
+                  shutil.rmtree(dest)
+                else:
+                  dest.unlink()
+              shutil.move(str(item), str(dest))
+            versioned.rmdir()
+
+          print('Model ready at assets/models/en_core_web_sm')
+          PY
 
       - name: Run tests with pytest
         run: xvfb-run uv run pytest tests --cov=src --cov-report=term --cov-report=xml

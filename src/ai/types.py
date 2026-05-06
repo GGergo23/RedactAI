@@ -3,12 +3,34 @@
 These types define the interface contract between:
   - T3.1 OCR  (produces TextDetection with full text + word-level bounding boxes)
   - T3.2 NLP  (consumes the plain text string, produces NLPEntity with char indices)
-  - T2.1 Pipeline (maps NLP char indices back to pixel bounding boxes via OCRWord.char_offset)
+    - T2.1 Pipeline (maps NLP char indices back to pixel bounding boxes via
+        OCRWord.char_offset)
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+
+
+@dataclass(frozen=True, slots=True)
+class NLPEntity:
+    """Single PII detection returned by the NLP detector.
+
+    Attributes:
+        label: Normalized entity label such as PERSON, EMAIL, or PHONE.
+        text: Exact substring matched in the OCR input.
+        start: Inclusive 0-based start offset into the OCR text.
+        end: Exclusive end offset into the OCR text.
+        confidence: Confidence score in the range 0..1.
+        source: Detector source, usually ``spacy`` or ``regex``.
+    """
+
+    label: str
+    text: str
+    start: int
+    end: int
+    confidence: float = 1.0
+    source: str = "spacy"
 
 
 @dataclass(frozen=True)
@@ -30,7 +52,8 @@ class OCRWord:
         bounding_box: Pixel-level location in the source image.
         confidence: Tesseract confidence score (0-100).
         char_offset: Start index of this word in the parent TextDetection.text string.
-            Invariant: ``detection.text[word.char_offset:word.char_offset + len(word.text)] == word.text``
+            Invariant: ``text[word.char_offset:word.char_offset + len(word.text)]``
+            ``== word.text``, where ``text`` is ``TextDetection.text``.
     """
 
     text: str
@@ -62,6 +85,9 @@ class TextDetection:
 
 @dataclass(frozen=True)
 class OCRResult:
-    """OCR result for a single image. Contains all ``TextDetection`` objects found in that image."""
+    """OCR result for a single image.
+
+    Contains all ``TextDetection`` objects found in that image.
+    """
 
     detections: list[TextDetection]
