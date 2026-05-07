@@ -6,12 +6,19 @@ All test scenarios from the T5.2 test matrix are covered here.
 
 from __future__ import annotations
 
+import os
+import stat
 from pathlib import Path
 
 import pytest
 from PIL import Image
 
-from src.persistance.image_reader import ImageReadError, read_image
+from src.persistance.image_reader import (
+    ImageBatchReadResult,
+    ImageReadError,
+    read_image,
+    read_images,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -101,9 +108,18 @@ class TestHappyPath:
         """Returned image must have pixels fully in memory (not lazy)."""
         p = _make_image(tmp_path, "img.png")
         result = read_image(p)
-        # Accessing .tobytes() on a lazy image would raise; this must not.
+        p.unlink()
         data = result.tobytes()
         assert len(data) > 0
+
+    def test_wrapper_reads_multiple_paths(self, tmp_path: Path) -> None:
+        p1 = _make_image(tmp_path, "a.png")
+        p2 = _make_image(tmp_path, "b.jpg")
+        result = read_images([p1, str(p2)])
+        assert isinstance(result, ImageBatchReadResult)
+        assert result.failed_paths == []
+        assert [path for path, _ in result.loaded_images] == [p1, p2]
+        assert all(isinstance(img, Image.Image) for _, img in result.loaded_images)
 
 
 # ---------------------------------------------------------------------------
@@ -159,17 +175,40 @@ class TestErrorCases:
             read_image(p)
         assert exc_info.value.cause is not None
 
-    def test_nonexistent_cause_is_none(self, tmp_path: Path) -> None:
-        """Missing-file errors do not require a wrapped cause."""
+    def test_nonexistent_error_wraps_file_not_found(self, tmp_path: Path) -> None:
+        """Missing-file errors are wrapped with the source cause."""
         p = tmp_path / "ghost.png"
         with pytest.raises(ImageReadError) as exc_info:
             read_image(p)
-        # cause may be None for the explicit existence check path
-        err = exc_info.value
-        assert isinstance(err, ImageReadError)
+        assert isinstance(exc_info.value.cause, FileNotFoundError)
 
     def test_error_message_contains_path(self, tmp_path: Path) -> None:
         p = tmp_path / "ghost.png"
         with pytest.raises(ImageReadError) as exc_info:
             read_image(p)
         assert str(p) in str(exc_info.value)
+
+    def test_wrapper_collects_failed_paths(self, tmp_path: Path) -> None:
+        ok = _make_image(tmp_path, "ok.png")
+        missing = tmp_path / "missing.png"
+        result = read_images([ok, missing])
+        assert result.failed_paths == [missing]
+        assert [path for path, _ in result.loaded_images] == [ok]
+
+    @pytest.mark.skipif(
+        os.name == "nt",
+        reason="chmod-based permission test is POSIX-only",
+    )
+    def test_permission_denied_raises(self, tmp_path: Path) -> None:
+        if hasattr(os, "geteuid") and os.geteuid() == 0:
+            pytest.skip("permission-denied semantics are unreliable as root")
+
+        p = _make_image(tmp_path, "no_read.png")
+        p.chmod(0)
+        try:
+            with pytest.raises(ImageReadError) as exc_info:
+                read_image(p)
+            assert isinstance(exc_info.value.cause, PermissionError)
+            assert "permission denied" in str(exc_info.value).lower()
+        finally:
+            p.chmod(stat.S_IRUSR | stat.S_IWUSR)
