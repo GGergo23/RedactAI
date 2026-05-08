@@ -170,19 +170,19 @@ def show_confirmation_dialog(
     severity: AlertSeverity | str = AlertSeverity.INFO,
     title: str | None = None,
 ) -> bool:
-    """Display a confirmation dialog with "Confirm" and "Cancel" buttons.
+    """Display a confirmation dialog with 2 buttons.
 
-    Returns True if the user confirmed, False if they cancelled.
+    Returns True if the user confirmed/allowed, False if they cancelled/rejected.
     """
 
     buttons = [
         AlertDialogButtonSpec(
             role=AlertButtonRole.CONFIRM,
-            text="Confirm",
+            text="Allow",
         ),
         AlertDialogButtonSpec(
             role=AlertButtonRole.CANCEL,
-            text="Cancel",
+            text="Decline",
         ),
     ]
 
