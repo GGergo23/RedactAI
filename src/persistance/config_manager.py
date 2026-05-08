@@ -44,10 +44,11 @@ class ConfigManager:
             "redact_faces": True,
             "redact_phone_numbers": True,
             "redact_emails": True,
-            "default_save_directory": str(Path.home() / "Documents" / "RedactAI"),
+            "default_save_directory": str(ConfigManager.get_default_save_directory()),
         }
 
-    def get_default_save_directory(self) -> Path:
+    @staticmethod
+    def get_default_save_directory() -> Path:
         """Return default directory for
         saving outputs (user Documents folder)."""
         return Path.home() / "Documents" / "RedactAI"

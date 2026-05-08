@@ -44,8 +44,8 @@ def _assert_roundtrip_and_sorted(text, entities):
 def test_validation_corpus_roundtrip():
     """Test detector against all corpus entries for expected detections."""
     d = NLPDetector()
-    corpus = Path("assets/corpus/validation_corpus.jsonl")
-    msg = "Corpus file missing: assets/corpus/validation_corpus.jsonl"
+    corpus = Path("tests/assets/corpus/validation_corpus.jsonl")
+    msg = "Corpus file missing: tests/assets/corpus/validation_corpus.jsonl"
     assert corpus.exists(), msg
 
     import json
