@@ -152,7 +152,10 @@ def show_alert(
     severity: AlertSeverity | str = AlertSeverity.INFO,
     title: str | None = None,
 ) -> int:
-    """Display an alert dialog and return the modal result code."""
+    """Display an alert dialog and return the modal result code.
+
+    Return the result code of the dialog.
+    """
 
     dialog = AlertDialog(
         message,
@@ -169,10 +172,10 @@ def show_confirmation_dialog(
     *,
     severity: AlertSeverity | str = AlertSeverity.INFO,
     title: str | None = None,
-) -> bool:
+) -> int:
     """Display a confirmation dialog with 2 buttons.
 
-    Returns True if the user confirmed/allowed, False if they cancelled/rejected.
+    Returns the result code of the dialog.
     """
 
     buttons = [
