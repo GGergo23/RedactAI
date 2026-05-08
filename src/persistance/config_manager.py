@@ -41,6 +41,7 @@ class ConfigManager:
             "confidence_threshold": 0.8,
             "output_format": "png",
             "allow_usage_statistics": False,
+            "is_first_launch": True,
             "redact_faces": True,
             "redact_phone_numbers": True,
             "redact_emails": True,
