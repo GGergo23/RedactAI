@@ -47,7 +47,8 @@ class ConfigManager:
             "default_save_directory": str(Path.home() / "Documents" / "RedactAI"),
         }
 
-    def get_default_save_directory(self) -> Path:
+    @staticmethod
+    def get_default_save_directory() -> Path:
         """Return default directory for
         saving outputs (user Documents folder)."""
         return Path.home() / "Documents" / "RedactAI"
