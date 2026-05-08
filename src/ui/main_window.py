@@ -2,9 +2,11 @@
 
 from enum import Enum
 
-from PyQt6.QtWidgets import QMainWindow, QStackedWidget
+from PyQt6.QtWidgets import QDialog, QMainWindow, QStackedWidget
 
+from src.persistance.config_manager import ConfigManager
 from src.persistance.resource_loader import ResourceLoader
+from src.ui.dialogs.alert_dialog import show_confirmation_dialog
 from src.ui.views.homepage import HomePage
 from src.ui.views.placeholder import PlaceholderView
 
@@ -46,6 +48,38 @@ class MainWindow(QMainWindow):
 
         # Show homepage first
         self.stacked_widget.setCurrentWidget(self.homepage)
+
+        # first launch analytics consent
+        if self._is_first_launch():
+            self._prompt_analytics_consent()
+
+            config_path = ConfigManager.get_default_save_directory() / "config.json"
+            config_manager = ConfigManager(config_path)
+            config_manager.load()
+            config_manager.set("is_first_launch", False)
+
+    def _is_first_launch(self) -> bool:
+        """Check if this is the first launch based on config."""
+        config_path = ConfigManager.get_default_save_directory() / "config.json"
+        config_manager = ConfigManager(config_path)
+        config_manager.load()
+        return config_manager.get("is_first_launch", True)
+
+    def _prompt_analytics_consent(self) -> None:
+        """Show the first-run analytics consent dialog once."""
+
+        dialog_result = show_confirmation_dialog(
+            self,
+            "Do you want to allow sending anonymous analytics?",
+            severity="info",
+            title="Analytics consent",
+        )
+        allowed_analytics = dialog_result == QDialog.DialogCode.Accepted
+
+        config_path = ConfigManager.get_default_save_directory() / "config.json"
+        config_manager = ConfigManager(config_path)
+        config_manager.load()
+        config_manager.set("allow_usage_statistics", allowed_analytics)
 
     def _apply_theme(self) -> None:
         """Load and apply the shared application theme."""

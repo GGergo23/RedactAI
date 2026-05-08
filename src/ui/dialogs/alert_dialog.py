@@ -1,5 +1,6 @@
 """Reusable alert dialog for informational and warning messages."""
 
+from dataclasses import dataclass
 from enum import Enum
 
 from PyQt6.QtCore import Qt
@@ -21,6 +22,21 @@ class AlertSeverity(str, Enum):
     WARNING = "warning"
 
 
+class AlertButtonRole(str, Enum):
+    """Supported action roles for alert dialog buttons."""
+
+    CONFIRM = "confirm"
+    CANCEL = "cancel"
+
+
+@dataclass(frozen=True, slots=True)
+class AlertDialogButtonSpec:
+    """Configuration for a single alert dialog button."""
+
+    role: AlertButtonRole
+    text: str
+
+
 class AlertDialog(QDialog):
     """Small reusable popup for displaying alert messages."""
 
@@ -35,6 +51,7 @@ class AlertDialog(QDialog):
         *,
         severity: AlertSeverity | str = AlertSeverity.INFO,
         title: str | None = None,
+        buttons: list[AlertDialogButtonSpec] | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -44,7 +61,18 @@ class AlertDialog(QDialog):
         self.setObjectName("alertDialog")
         self.setProperty("role", "alert-dialog")
         self.setProperty("severity", self._severity.value)
-        self._setup_ui(message)
+        self._setup_ui(message, buttons or self._default_buttons())
+
+    @staticmethod
+    def _default_buttons() -> list[AlertDialogButtonSpec]:
+        """Return the default single-button layout."""
+
+        return [
+            AlertDialogButtonSpec(
+                role=AlertButtonRole.CANCEL,
+                text="Cancel",
+            )
+        ]
 
     @classmethod
     def _coerce_severity(cls, severity: AlertSeverity | str) -> AlertSeverity:
@@ -54,7 +82,7 @@ class AlertDialog(QDialog):
         normalized = str(severity).strip().lower()
         return AlertSeverity(normalized)
 
-    def _setup_ui(self, message: str) -> None:
+    def _setup_ui(self, message: str, buttons: list[AlertDialogButtonSpec]) -> None:
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
@@ -93,12 +121,23 @@ class AlertDialog(QDialog):
         header_layout.addLayout(text_column, 1)
 
         button_box = QDialogButtonBox()
-        close_button = button_box.addButton(
-            "Close",
-            QDialogButtonBox.ButtonRole.RejectRole,
-        )
-        close_button.setProperty("role", "alert-close")
-        close_button.clicked.connect(self.close)
+        for index, button_spec in enumerate(buttons):
+            if button_spec.role is AlertButtonRole.CONFIRM:
+                qt_role = QDialogButtonBox.ButtonRole.AcceptRole
+                handler = self.accept
+                role_style = "confirm"
+            elif button_spec.role is AlertButtonRole.CANCEL:
+                qt_role = QDialogButtonBox.ButtonRole.RejectRole
+                handler = self.reject
+                role_style = "cancel"
+            else:  # pragma: no cover - defensive guard for future roles
+                raise ValueError(f"Unsupported button role: {button_spec.role!r}")
+
+            button = button_box.addButton(button_spec.text, qt_role)
+            button.setProperty("role", f"alert-{role_style}")
+            if index == 0:
+                button.setDefault(True)
+            button.clicked.connect(handler)
 
         layout.addLayout(header_layout)
         layout.addWidget(button_box, alignment=Qt.AlignmentFlag.AlignRight)
@@ -113,11 +152,47 @@ def show_alert(
     severity: AlertSeverity | str = AlertSeverity.INFO,
     title: str | None = None,
 ) -> int:
-    """Display an alert dialog and return the modal result code."""
+    """Display an alert dialog and return the modal result code.
+
+    Return the result code of the dialog.
+    """
 
     dialog = AlertDialog(
         message,
         severity=severity,
+        title=title,
+        parent=parent,
+    )
+    return dialog.exec()
+
+
+def show_confirmation_dialog(
+    parent: QWidget | None,
+    message: str,
+    *,
+    severity: AlertSeverity | str = AlertSeverity.INFO,
+    title: str | None = None,
+) -> int:
+    """Display a confirmation dialog with 2 buttons.
+
+    Returns the result code of the dialog.
+    """
+
+    buttons = [
+        AlertDialogButtonSpec(
+            role=AlertButtonRole.CONFIRM,
+            text="Allow",
+        ),
+        AlertDialogButtonSpec(
+            role=AlertButtonRole.CANCEL,
+            text="Decline",
+        ),
+    ]
+
+    dialog = AlertDialog(
+        message,
+        severity=severity,
+        buttons=buttons,
         title=title,
         parent=parent,
     )

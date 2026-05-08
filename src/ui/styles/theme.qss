@@ -69,7 +69,7 @@ QLabel[role="alert-icon"][severity="warning"] {
     background: transparent;
 }
 
-QPushButton[role="alert-close"] {
+QPushButton[role="alert-cancel"] {
     background-color: #f76b6b;
     color: #ffffff;
     border: none;
@@ -79,8 +79,23 @@ QPushButton[role="alert-close"] {
     font-weight: 600;
 }
 
-QPushButton[role="alert-close"]:hover {
+QPushButton[role="alert-cancel"]:hover {
     background-color: #ff8c8c;
+}
+
+
+QPushButton[role="alert-confirm"] {
+    background-color: #6bf770;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+QPushButton[role="alert-confirm"]:hover {
+    background-color: #8cff96;
 }
 
 QLabel[role="drag-title"] {
