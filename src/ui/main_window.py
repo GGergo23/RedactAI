@@ -75,7 +75,6 @@ class MainWindow(QMainWindow):
             title="Analytics consent",
         )
         allowed_analytics = dialog_result == QDialog.DialogCode.Accepted
-        print(f"Analytics consent: {'allowed' if allowed_analytics else 'declined'}")
 
         config_path = ConfigManager.get_default_save_directory() / "config.json"
         config_manager = ConfigManager(config_path)
