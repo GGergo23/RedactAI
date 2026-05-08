@@ -13,6 +13,7 @@ def test_set_persists(tmp_path):
     assert cm.get("redact_faces") is True
     assert cm.get("redact_phone_numbers") is True
     assert cm.get("redact_emails") is True
+    assert cm.get("is_first_launch") is True
 
 
 def test_default_save_directory():
