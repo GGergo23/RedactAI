@@ -57,7 +57,6 @@ class MainWindow(QMainWindow):
             config_manager = ConfigManager(config_path)
             config_manager.load()
             config_manager.set("is_first_launch", False)
-            config_manager.save()
 
     def _is_first_launch(self) -> bool:
         """Check if this is the first launch based on config."""
@@ -82,7 +81,6 @@ class MainWindow(QMainWindow):
         config_manager = ConfigManager(config_path)
         config_manager.load()
         config_manager.set("allow_usage_statistics", allowed_analytics)
-        config_manager.save()
 
     def _apply_theme(self) -> None:
         """Load and apply the shared application theme."""
