@@ -45,10 +45,13 @@ _OBJECT_DETECTOR_EXPORTS = {
     "default_model_paths",
     "download_default_models",
 }
+_OBJECT_DETECTOR_MODULE = None
 
 
 def __getattr__(name: str) -> Any:
+    global _OBJECT_DETECTOR_MODULE
     if name in _OBJECT_DETECTOR_EXPORTS:
-        module = import_module("src.ai.object_detector")
-        return getattr(module, name)
+        if _OBJECT_DETECTOR_MODULE is None:
+            _OBJECT_DETECTOR_MODULE = import_module("src.ai.object_detector")
+        return getattr(_OBJECT_DETECTOR_MODULE, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

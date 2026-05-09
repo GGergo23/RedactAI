@@ -72,10 +72,7 @@ def _normalize_model_filename(filename: str) -> str:
         raise ValueError(f"Invalid model filename: {filename!r}")
     if "/" in filename or "\\" in filename:
         raise ValueError(f"Invalid model filename: {filename!r}")
-    model_name = Path(filename).name
-    if model_name != filename:
-        raise ValueError(f"Invalid model filename: {filename!r}")
-    return model_name
+    return filename
 
 
 @dataclass(slots=True)
