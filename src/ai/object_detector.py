@@ -70,6 +70,8 @@ def _default_download_dir() -> Path:
 def _normalize_model_filename(filename: str) -> str:
     if not filename or filename in {".", ".."}:
         raise ValueError(f"Invalid model filename: {filename!r}")
+    if ".." in filename:
+        raise ValueError(f"Invalid model filename: {filename!r}")
     if "/" in filename or "\\" in filename:
         raise ValueError(f"Invalid model filename: {filename!r}")
     return filename
@@ -88,9 +90,8 @@ class ObjectDetector:
         filename = _normalize_model_filename(filename)
         if configured is not None:
             return configured
-        resource_path = ResourceLoader.get_resource_path(
-            f"{DEFAULT_MODELS_DIR}/{filename}"
-        )
+        resource_relative_path = Path(DEFAULT_MODELS_DIR) / filename
+        resource_path = ResourceLoader.get_resource_path(str(resource_relative_path))
         if resource_path.exists():
             return resource_path
         cached_path = _default_download_dir() / filename

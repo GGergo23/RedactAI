@@ -1,5 +1,6 @@
 """AI module for RedactAI -- ML models for detecting sensitive information."""
 
+from functools import lru_cache
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
@@ -45,13 +46,14 @@ _OBJECT_DETECTOR_EXPORTS = {
     "default_model_paths",
     "download_default_models",
 }
-_OBJECT_DETECTOR_MODULE = None
+
+
+@lru_cache(maxsize=1)
+def _get_object_detector_module() -> Any:
+    return import_module("src.ai.object_detector")
 
 
 def __getattr__(name: str) -> Any:
-    global _OBJECT_DETECTOR_MODULE
     if name in _OBJECT_DETECTOR_EXPORTS:
-        if _OBJECT_DETECTOR_MODULE is None:
-            _OBJECT_DETECTOR_MODULE = import_module("src.ai.object_detector")
-        return getattr(_OBJECT_DETECTOR_MODULE, name)
+        return getattr(_get_object_detector_module(), name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
