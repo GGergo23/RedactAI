@@ -51,6 +51,6 @@ def __getattr__(name: str) -> Any:
     if name in _OBJECT_DETECTOR_EXPORTS:
         module = import_module("src.ai.object_detector")
         return getattr(module, name)
-    if name in __all__ and name in globals():
+    if name in __all__:
         return globals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
