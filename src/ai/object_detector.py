@@ -67,8 +67,17 @@ def _load_yolo_class() -> type[YOLOType]:
 def _default_download_dir() -> Path:
     xdg_cache_home = os.environ.get("XDG_CACHE_HOME")
     if xdg_cache_home:
-        return Path(xdg_cache_home) / "redactai" / "models"
+        cache_root = Path(xdg_cache_home).expanduser()
+        if cache_root.is_absolute():
+            return cache_root / "redactai" / "models"
     return Path.home() / ".cache" / "redactai" / "models"
+
+
+def _normalize_model_filename(filename: str) -> str:
+    model_name = Path(filename).name
+    if model_name != filename:
+        raise ValueError(f"Invalid model filename: {filename!r}")
+    return model_name
 
 
 @dataclass(slots=True)
@@ -81,6 +90,7 @@ class ObjectDetector:
     license_plate_model_path: Path | None = None
 
     def _resolve_model_path(self, filename: str, configured: Path | None) -> Path:
+        filename = _normalize_model_filename(filename)
         if configured is not None:
             return configured
         resource_path = ResourceLoader.get_resource_path(
