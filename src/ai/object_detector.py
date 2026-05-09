@@ -4,7 +4,7 @@ The module exposes a small, testable object-detection API that returns
 axis-aligned bounding boxes plus labels and confidence scores.
 
 It is designed around two pretrained YOLO-based models:
-- YOLOv8-face for face detection
+- YOLOv8n-face variant for face detection
 - YOLOv11 fine-tuned license plate detector
 
 The real backends are loaded lazily from model files under assets/models/.
@@ -15,7 +15,6 @@ requiring model weights to be present.
 from __future__ import annotations
 
 from dataclasses import dataclass
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
@@ -56,7 +55,7 @@ class ObjectDetectionBackend(Protocol):
 def _load_yolo_class() -> type[YOLOType]:
     try:
         from ultralytics import YOLO
-    except Exception as exc:  # pragma: no cover - wrapped failure path
+    except ImportError as exc:  # pragma: no cover - wrapped failure path
         raise ModelLoadError(
             "Ultralytics is required for object-detection backends. "
             "Install dependencies and try again."
@@ -65,15 +64,14 @@ def _load_yolo_class() -> type[YOLOType]:
 
 
 def _default_download_dir() -> Path:
-    xdg_cache_home = os.environ.get("XDG_CACHE_HOME")
-    if xdg_cache_home:
-        cache_root = Path(xdg_cache_home).expanduser()
-        if cache_root.is_absolute():
-            return cache_root / "redactai" / "models"
     return Path.home() / ".cache" / "redactai" / "models"
 
 
 def _normalize_model_filename(filename: str) -> str:
+    if not filename or filename in {".", ".."}:
+        raise ValueError(f"Invalid model filename: {filename!r}")
+    if "/" in filename or "\\" in filename:
+        raise ValueError(f"Invalid model filename: {filename!r}")
     model_name = Path(filename).name
     if model_name != filename:
         raise ValueError(f"Invalid model filename: {filename!r}")
