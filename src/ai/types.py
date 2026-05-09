@@ -83,6 +83,15 @@ class TextDetection:
     words: list[OCRWord]
 
 
+@dataclass(frozen=True, slots=True)
+class DetectedObject:
+    """A detected visual object returned by an object detector."""
+
+    label: str
+    bounding_box: BoundingBox
+    confidence: float
+
+
 @dataclass(frozen=True)
 class OCRResult:
     """OCR result for a single image.
