@@ -26,7 +26,7 @@ def test_black_bar_only_affects_target_region() -> None:
 
     target = RedactionTarget(
         location=BoundingBox(x=10, y=12, width=20, height=16),
-        type=RedactionType.BLACK_BAR,
+        redaction_type=RedactionType.BLACK_BAR,
     )
     redacted = np.array(apply_redactions(image, [target]))
 
@@ -45,7 +45,7 @@ def test_pixelation_permanently_changes_target_region_only() -> None:
 
     target = RedactionTarget(
         location=BoundingBox(x=8, y=8, width=40, height=40),
-        type=RedactionType.PIXELATE,
+        redaction_type=RedactionType.PIXELATE,
     )
     redacted = np.array(apply_redactions(image, [target]))
 
@@ -67,10 +67,27 @@ def test_out_of_bounds_bbox_is_clamped() -> None:
 
     target = RedactionTarget(
         location=BoundingBox(x=12, y=12, width=20, height=20),
-        type=RedactionType.BLACK_BAR,
+        redaction_type=RedactionType.BLACK_BAR,
     )
     redacted = np.array(apply_redactions(image, [target]))
 
     assert np.array_equal(redacted[12:16, 12:16], np.zeros((4, 4, 3), dtype=np.uint8))
     assert np.array_equal(redacted[0:12, :], original[0:12, :])
     assert np.array_equal(redacted[:, 0:12], original[:, 0:12])
+
+
+def test_apply_redactions_preserves_rgba_alpha_channel_and_mode() -> None:
+    rgb = _make_gradient_image(width=16, height=16)
+    alpha = Image.new("L", (16, 16), color=123)
+    image = rgb.copy()
+    image.putalpha(alpha)
+    original_alpha = np.array(image.getchannel("A"))
+
+    target = RedactionTarget(
+        location=BoundingBox(x=2, y=2, width=8, height=8),
+        redaction_type=RedactionType.BLACK_BAR,
+    )
+    redacted = apply_redactions(image, [target])
+
+    assert redacted.mode == "RGBA"
+    assert np.array_equal(np.array(redacted.getchannel("A")), original_alpha)

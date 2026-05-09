@@ -24,7 +24,7 @@ class RedactionTarget:
     """Single redaction instruction for a rectangular image region."""
 
     location: BoundingBox
-    type: RedactionType
+    redaction_type: RedactionType
 
 
 def _clamp_bbox(
@@ -71,7 +71,11 @@ def apply_redactions(image: Image.Image, targets: list[RedactionTarget]) -> Imag
 
     Returns:
         A new ``PIL.Image`` with the requested regions permanently modified.
+        The returned image preserves the original image mode and alpha channel.
     """
+    original_mode = image.mode
+    alpha_channel = image.getchannel("A") if "A" in image.getbands() else None
+
     rgb_array = np.array(image.convert("RGB"), copy=True)
     bgr_array = cv2.cvtColor(rgb_array, cv2.COLOR_RGB2BGR)
     image_height, image_width = bgr_array.shape[:2]
@@ -83,16 +87,21 @@ def apply_redactions(image: Image.Image, targets: list[RedactionTarget]) -> Imag
 
         x1, y1, x2, y2 = clamped
 
-        if target.type == RedactionType.BLACK_BAR:
+        if target.redaction_type == RedactionType.BLACK_BAR:
             bgr_array[y1:y2, x1:x2] = (0, 0, 0)
             continue
 
-        if target.type == RedactionType.PIXELATE:
+        if target.redaction_type == RedactionType.PIXELATE:
             region = bgr_array[y1:y2, x1:x2]
             bgr_array[y1:y2, x1:x2] = _apply_heavy_pixelation(region)
             continue
 
-        raise ValueError(f"Unsupported redaction type: {target.type}")
+        raise ValueError(f"Unsupported redaction type: {target.redaction_type}")
 
     redacted_rgb = cv2.cvtColor(bgr_array, cv2.COLOR_BGR2RGB)
-    return Image.fromarray(redacted_rgb)
+    redacted_image = Image.fromarray(redacted_rgb, mode="RGB")
+
+    if alpha_channel is not None:
+        redacted_image.putalpha(alpha_channel)
+
+    return redacted_image.convert(original_mode)
