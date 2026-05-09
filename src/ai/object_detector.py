@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from PIL import Image
 
@@ -28,7 +28,7 @@ FACE_MODEL_FILENAME = "yolov8n-face.pt"
 LICENSE_PLATE_MODEL_FILENAME = "license-plate-finetune-v1n.pt"
 
 FACE_MODEL_URL = (
-    "https://github.com/akanametov/yolo-face/releases/download/1.0.0/" "yolov8n-face.pt"
+    "https://github.com/akanametov/yolo-face/releases/download/1.0.0/yolov8n-face.pt"
 )
 
 LICENSE_PLATE_MODEL_URL = (
@@ -50,7 +50,7 @@ class ObjectDetectionBackend(Protocol):
         """Infer detected objects from a single image."""
 
 
-def _load_yolo_class():
+def _load_yolo_class() -> type[Any]:
     try:
         from ultralytics import YOLO
     except Exception as exc:  # pragma: no cover - wrapped failure path
