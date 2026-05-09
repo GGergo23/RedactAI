@@ -27,7 +27,9 @@ class _FakeBackend:
         return list(self._detections)
 
 
-def _make_object(label: str, x: int, y: int, width: int, height: int, confidence: float) -> DetectedObject:
+def _make_object(
+    label: str, x: int, y: int, width: int, height: int, confidence: float
+) -> DetectedObject:
     return DetectedObject(
         label=label,
         bounding_box=BoundingBox(x=x, y=y, width=width, height=height),
@@ -38,9 +40,7 @@ def _make_object(label: str, x: int, y: int, width: int, height: int, confidence
 def test_detect_merges_face_and_plate_backends() -> None:
     image = Image.new("RGB", (128, 128), color="white")
     face_backend = _FakeBackend([_make_object("face", 10, 12, 20, 22, 0.98)])
-    plate_backend = _FakeBackend([
-        _make_object("license_plate", 48, 64, 30, 12, 0.91)
-    ])
+    plate_backend = _FakeBackend([_make_object("license_plate", 48, 64, 30, 12, 0.91)])
 
     detector = ObjectDetector(
         face_backend=face_backend,

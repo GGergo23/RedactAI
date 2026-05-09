@@ -4,7 +4,7 @@ The module exposes a small, testable object-detection API that returns
 axis-aligned bounding boxes plus labels and confidence scores.
 
 It is designed around two pretrained YOLO-based models:
-- YOLOv8-face for face detection 
+- YOLOv8-face for face detection
 - YOLOv11 fine-tuned license plate detector
 
 The real backends are loaded lazily from model files under assets/models/.
@@ -15,11 +15,11 @@ requiring model weights to be present.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
 from typing import Protocol
 
 from PIL import Image
-from ultralytics import YOLO
 
 from src.ai.types import BoundingBox, DetectedObject
 from src.persistance.resource_loader import ResourceLoader
@@ -28,8 +28,7 @@ FACE_MODEL_FILENAME = "yolov8n-face.pt"
 LICENSE_PLATE_MODEL_FILENAME = "license-plate-finetune-v1n.pt"
 
 FACE_MODEL_URL = (
-    "https://github.com/akanametov/yolo-face/releases/download/1.0.0/"
-    "yolov8n-face.pt"
+    "https://github.com/akanametov/yolo-face/releases/download/1.0.0/" "yolov8n-face.pt"
 )
 
 LICENSE_PLATE_MODEL_URL = (
@@ -51,6 +50,24 @@ class ObjectDetectionBackend(Protocol):
         """Infer detected objects from a single image."""
 
 
+def _load_yolo_class():
+    try:
+        from ultralytics import YOLO
+    except Exception as exc:  # pragma: no cover - wrapped failure path
+        raise ModelLoadError(
+            "Ultralytics is required for object-detection backends. "
+            "Install dependencies and try again."
+        ) from exc
+    return YOLO
+
+
+def _default_download_dir() -> Path:
+    xdg_cache_home = os.environ.get("XDG_CACHE_HOME")
+    if xdg_cache_home:
+        return Path(xdg_cache_home) / "redactai" / "models"
+    return Path.home() / ".cache" / "redactai" / "models"
+
+
 @dataclass(slots=True)
 class ObjectDetector:
     """High-level orchestrator for face and license plate detection."""
@@ -63,7 +80,15 @@ class ObjectDetector:
     def _resolve_model_path(self, filename: str, configured: Path | None) -> Path:
         if configured is not None:
             return configured
-        return ResourceLoader.get_resource_path(f"{DEFAULT_MODELS_DIR}/{filename}")
+        resource_path = ResourceLoader.get_resource_path(
+            f"{DEFAULT_MODELS_DIR}/{filename}"
+        )
+        if resource_path.exists():
+            return resource_path
+        cached_path = _default_download_dir() / filename
+        if cached_path.exists():
+            return cached_path
+        return resource_path
 
     def _ensure_backends(self) -> None:
         if self.face_backend is None:
@@ -128,27 +153,29 @@ class FaceYOLOv8Backend:
         self._confidence_threshold = confidence_threshold
 
         try:
-            self._model = YOLO(str(model_path))
+            self._model = _load_yolo_class()(str(model_path))
         except Exception as exc:  # pragma: no cover - wrapped failure path
             raise ModelLoadError(
                 f"Unable to load face model from {model_path}."
             ) from exc
 
     def infer(self, image: Image.Image) -> list[DetectedObject]:
-        results = self._model.predict(image, conf=self._confidence_threshold, verbose=False)
-        
+        results = self._model.predict(
+            image, conf=self._confidence_threshold, verbose=False
+        )
+
         detections: list[DetectedObject] = []
         for result in results:
             if result.boxes is None or len(result.boxes) == 0:
                 continue
-                
+
             for box in result.boxes:
                 x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
                 x, y = int(x1), int(y1)
                 width = int(x2 - x1)
                 height = int(y2 - y1)
                 confidence = float(box.conf[0].cpu().numpy())
-                
+
                 detections.append(
                     DetectedObject(
                         label="face",
@@ -160,7 +187,7 @@ class FaceYOLOv8Backend:
 
 
 class LicensePlateYOLOv11Backend:
-    """YOLOv8-based backend for license plate detection."""
+    """YOLOv11-based backend for license plate detection."""
 
     def __init__(
         self,
@@ -171,27 +198,29 @@ class LicensePlateYOLOv11Backend:
         self._confidence_threshold = confidence_threshold
 
         try:
-            self._model = YOLO(str(model_path))
+            self._model = _load_yolo_class()(str(model_path))
         except Exception as exc:  # pragma: no cover - wrapped failure path
             raise ModelLoadError(
                 f"Unable to load license plate model from {model_path}."
             ) from exc
 
     def infer(self, image: Image.Image) -> list[DetectedObject]:
-        results = self._model.predict(image, conf=self._confidence_threshold, verbose=False)
-        
+        results = self._model.predict(
+            image, conf=self._confidence_threshold, verbose=False
+        )
+
         detections: list[DetectedObject] = []
         for result in results:
             if result.boxes is None or len(result.boxes) == 0:
                 continue
-                
+
             for box in result.boxes:
                 x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
                 x, y = int(x1), int(y1)
                 width = int(x2 - x1)
                 height = int(y2 - y1)
                 confidence = float(box.conf[0].cpu().numpy())
-                
+
                 detections.append(
                     DetectedObject(
                         label="license_plate",
@@ -215,13 +244,11 @@ def default_model_paths() -> dict[str, Path]:
 
 
 def download_default_models(destination_dir: Path | None = None) -> dict[str, Path]:
-    """Ensure the default model directory exists and download the plate weights."""
+    """Ensure the model directory exists and download face + plate weights."""
     from urllib.request import urlretrieve
-    
+
     model_dir = (
-        destination_dir
-        if destination_dir is not None
-        else ResourceLoader.get_resource_path(DEFAULT_MODELS_DIR)
+        destination_dir if destination_dir is not None else _default_download_dir()
     )
     model_dir.mkdir(parents=True, exist_ok=True)
 
