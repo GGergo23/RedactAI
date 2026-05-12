@@ -44,16 +44,22 @@ class TestConsentGate:
     def test_no_network_call_when_consent_denied(self, monkeypatch):
         _set_config(monkeypatch)
         with patch("src.persistance.analytics.urllib.request.urlopen") as mock_urlopen:
-            result = submit_analytics(redaction_count=7, test_mode=False, consent_granted=False)
+            result = submit_analytics(
+                redaction_count=7, test_mode=False, consent_granted=False
+            )
         assert result is False
         mock_urlopen.assert_not_called()
 
-    def test_returns_false_when_consent_denied_even_with_config_blank(self, monkeypatch):
+    def test_returns_false_when_consent_denied_even_with_config_blank(
+        self, monkeypatch
+    ):
         monkeypatch.setattr(analytics_config, "FORM_URL", "")
         monkeypatch.setattr(analytics_config, "ENTRY_COUNT", "")
         monkeypatch.setattr(analytics_config, "ENTRY_TEST_MODE", "")
         with patch("src.persistance.analytics.urllib.request.urlopen") as mock_urlopen:
-            result = submit_analytics(redaction_count=1, test_mode=True, consent_granted=False)
+            result = submit_analytics(
+                redaction_count=1, test_mode=True, consent_granted=False
+            )
         assert result is False
         mock_urlopen.assert_not_called()
 
@@ -65,7 +71,9 @@ class TestSuccessfulSubmission:
             "src.persistance.analytics.urllib.request.urlopen",
             return_value=_make_response(200),
         ) as mock_urlopen:
-            result = submit_analytics(redaction_count=5, test_mode=True, consent_granted=True)
+            result = submit_analytics(
+                redaction_count=5, test_mode=True, consent_granted=True
+            )
 
         assert result is True
         mock_urlopen.assert_called_once()
@@ -87,7 +95,9 @@ class TestSuccessfulSubmission:
             "src.persistance.analytics.urllib.request.urlopen",
             return_value=_make_response(200),
         ) as mock_urlopen:
-            submit_analytics(redaction_count=0, test_mode=test_mode, consent_granted=True)
+            submit_analytics(
+                redaction_count=0, test_mode=test_mode, consent_granted=True
+            )
         body = _decode_post_body(mock_urlopen.call_args)
         assert body[FAKE_ENTRY_TEST_MODE] == expected
 
@@ -107,7 +117,9 @@ class TestSuccessfulSubmission:
             "src.persistance.analytics.urllib.request.urlopen",
             return_value=_make_response(200),
         ) as mock_urlopen:
-            submit_analytics(redaction_count=1, test_mode=False, consent_granted=True, timeout=2.5)
+            submit_analytics(
+                redaction_count=1, test_mode=False, consent_granted=True, timeout=2.5
+            )
         assert mock_urlopen.call_args.kwargs.get("timeout") == 2.5
 
 
@@ -120,7 +132,9 @@ class TestMissingConfiguration:
         _set_config(monkeypatch)
         monkeypatch.setattr(analytics_config, blank_attr, "")
         with patch("src.persistance.analytics.urllib.request.urlopen") as mock_urlopen:
-            result = submit_analytics(redaction_count=3, test_mode=False, consent_granted=True)
+            result = submit_analytics(
+                redaction_count=3, test_mode=False, consent_granted=True
+            )
         assert result is False
         mock_urlopen.assert_not_called()
 
@@ -132,7 +146,9 @@ class TestErrorHandling:
             "src.persistance.analytics.urllib.request.urlopen",
             side_effect=urllib.error.URLError("boom"),
         ):
-            result = submit_analytics(redaction_count=1, test_mode=True, consent_granted=True)
+            result = submit_analytics(
+                redaction_count=1, test_mode=True, consent_granted=True
+            )
         assert result is False
 
     def test_returns_false_on_timeout(self, monkeypatch):
@@ -141,7 +157,9 @@ class TestErrorHandling:
             "src.persistance.analytics.urllib.request.urlopen",
             side_effect=TimeoutError("slow"),
         ):
-            result = submit_analytics(redaction_count=1, test_mode=True, consent_granted=True)
+            result = submit_analytics(
+                redaction_count=1, test_mode=True, consent_granted=True
+            )
         assert result is False
 
     def test_returns_false_on_os_error(self, monkeypatch):
@@ -150,7 +168,9 @@ class TestErrorHandling:
             "src.persistance.analytics.urllib.request.urlopen",
             side_effect=OSError("dns"),
         ):
-            result = submit_analytics(redaction_count=1, test_mode=True, consent_granted=True)
+            result = submit_analytics(
+                redaction_count=1, test_mode=True, consent_granted=True
+            )
         assert result is False
 
     def test_returns_false_on_non_2xx_status(self, monkeypatch):
@@ -159,5 +179,7 @@ class TestErrorHandling:
             "src.persistance.analytics.urllib.request.urlopen",
             return_value=_make_response(500),
         ):
-            result = submit_analytics(redaction_count=1, test_mode=True, consent_granted=True)
+            result = submit_analytics(
+                redaction_count=1, test_mode=True, consent_granted=True
+            )
         assert result is False

@@ -7,7 +7,8 @@ anyway. Setting any value to an empty string disables analytics submission:
 """
 
 FORM_URL: str = (
-    "https://docs.google.com/forms/d/e/" "1FAIpQLScPVrw-dDh-9_W9RimXuP9G9cF9cZl6UmPToaxAX212gNbVIg/formResponse"
+    "https://docs.google.com/forms/d/e/"
+    "1FAIpQLScPVrw-dDh-9_W9RimXuP9G9cF9cZl6UmPToaxAX212gNbVIg/formResponse"
 )
 ENTRY_COUNT: str = "entry.1704973568"
 ENTRY_TEST_MODE: str = "entry.2112608349"
