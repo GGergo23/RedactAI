@@ -6,5 +6,13 @@ from src.persistance.image_reader import (
     read_image,
     read_images,
 )
+from src.persistance.image_writer import ImageWriteError, save_image
 
-__all__ = ["ImageReadError", "ImageBatchReadResult", "read_image", "read_images"]
+__all__ = [
+    "ImageReadError",
+    "ImageBatchReadResult",
+    "ImageWriteError",
+    "read_image",
+    "read_images",
+    "save_image",
+]
