@@ -48,11 +48,11 @@ class DetectionProgressView(QWidget):
         self.progress_bar = QProgressBar()
         self.progress_bar.setMinimum(0)
         self.progress_bar.setMaximum(100)
-        self.progress_bar.setValue(0)
+        self.progress_bar.setValue(self.current_progress)
         self.progress_bar.setTextVisible(False) # use custom label for percentage
 
         # Progress percentage label
-        self.progress_percentage_label = QLabel("0%")
+        self.progress_percentage_label = QLabel(f"{self.current_progress}%")
         self.progress_percentage_label.setProperty("role", "body")
         self.progress_percentage_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
