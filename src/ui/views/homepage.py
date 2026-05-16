@@ -74,4 +74,8 @@ class HomePage(QWidget):
         # Import here to avoid circular dependency
         from src.ui.main_window import Page
 
+
+    def on_page_become_current(self) -> None:
+        """Called when this page becomes the current page in the stack."""
+        pass
         self.transition_page_fn(Page.PLACEHOLDER, files=files)

@@ -30,6 +30,7 @@ class MainWindow(QMainWindow):
 
         # Create stacked widget for view management
         self.stacked_widget = QStackedWidget()
+        self.stacked_widget.currentChanged.connect(self._on_view_changed)
         self.setCentralWidget(self.stacked_widget)
 
         # Create views
@@ -118,3 +119,14 @@ class MainWindow(QMainWindow):
             set_launch_extra(**kwargs)
 
         self.stacked_widget.setCurrentWidget(target)
+
+    def _on_view_changed(self, index: int) -> None:
+        """Handle logic when the current view changes."""
+        current_widget = self.stacked_widget.widget(index)
+        current_widget_notify = getattr(current_widget, "on_page_become_current", None)
+        if not callable(current_widget_notify):
+            raise TypeError(
+                f"Current view {type(current_widget).__name__!r} does not "
+                "implement on_page_become_current() method for view change notifications."
+            )
+        current_widget_notify()
