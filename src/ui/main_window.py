@@ -7,12 +7,14 @@ from PyQt6.QtWidgets import QDialog, QMainWindow, QStackedWidget
 from src.persistance.config_manager import ConfigManager
 from src.persistance.resource_loader import ResourceLoader
 from src.ui.dialogs.alert_dialog import show_confirmation_dialog
+from src.ui.views.detection_progress import DetectionProgressView
 from src.ui.views.homepage import HomePage
 from src.ui.views.placeholder import PlaceholderView
 
 
 class Page(Enum):
     HOME = "home"
+    DETECTION_PROGRESS = "detection_progress"
     PLACEHOLDER = "placeholder"
 
 
@@ -35,16 +37,19 @@ class MainWindow(QMainWindow):
 
         # Create views
         self.homepage = HomePage(self.go_to)
+        self.detection_progress = DetectionProgressView(self.go_to)
         self.placeholder = PlaceholderView(lambda: self.go_to(Page.HOME))
 
         # Register views in a mapping for unified navigation
         self.views = {
             Page.HOME: self.homepage,
+            Page.DETECTION_PROGRESS: self.detection_progress,
             Page.PLACEHOLDER: self.placeholder,
         }
 
         # Add to stacked widget
         self.stacked_widget.addWidget(self.homepage)
+        self.stacked_widget.addWidget(self.detection_progress)
         self.stacked_widget.addWidget(self.placeholder)
 
         # Show homepage first
