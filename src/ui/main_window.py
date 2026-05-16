@@ -53,7 +53,7 @@ class MainWindow(QMainWindow):
         self.stacked_widget.addWidget(self.placeholder)
 
         # Show homepage first
-        self.stacked_widget.setCurrentWidget(self.homepage)
+        self.stacked_widget.setCurrentWidget(self.detection_progress)
 
         # first launch analytics consent
         if self._is_first_launch():
@@ -132,6 +132,7 @@ class MainWindow(QMainWindow):
         if not callable(current_widget_notify):
             raise TypeError(
                 f"Current view {type(current_widget).__name__!r} does not "
-                "implement on_page_become_current() method for view change notifications."
+                "implement on_page_become_current() method for view "
+                "change notifications."
             )
         current_widget_notify()

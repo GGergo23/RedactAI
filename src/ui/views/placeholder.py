@@ -58,7 +58,7 @@ class PlaceholderView(QWidget):
         layout.addStretch()
         layout.addWidget(back_button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addStretch()
-    
+
     def on_page_become_current(self) -> None:
         """Called when this page becomes the current page in the stack."""
         pass

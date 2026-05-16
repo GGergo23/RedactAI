@@ -49,7 +49,7 @@ class DetectionProgressView(QWidget):
         self.progress_bar.setMinimum(0)
         self.progress_bar.setMaximum(100)
         self.progress_bar.setValue(self.current_progress)
-        self.progress_bar.setTextVisible(False) # use custom label for percentage
+        self.progress_bar.setTextVisible(False)  # use custom label for percentage
 
         # Progress percentage label
         self.progress_percentage_label = QLabel(f"{self.current_progress}%")
@@ -88,9 +88,15 @@ class DetectionProgressView(QWidget):
         # start detection task
         # mock for now
         self.progress_timer = QTimer()
-        self.progress_timer.timeout.connect(lambda: self.on_detection_complete(None) if self.current_progress >= 100 else self.on_progress_update(min(100, self.current_progress + 12)))
+        self.progress_timer.timeout.connect(
+            lambda: (
+                self.on_detection_complete(None)
+                if self.current_progress >= 100
+                else self.on_progress_update(min(100, self.current_progress + 12))
+            )
+        )
         self.progress_timer.start(300)
-        
+
         # Update status text
         self.status_label.setText("Running detection pipeline...")
 
@@ -106,7 +112,7 @@ class DetectionProgressView(QWidget):
         self.status_label.setText("Detection complete!")
         # DEBUG: Stop current progress simulation
         self.progress_timer.stop()
-        
+
         # Import here to avoid circular dependency
         from src.ui.main_window import Page
 
