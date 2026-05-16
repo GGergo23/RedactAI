@@ -22,6 +22,13 @@ QLabel[role="subtitle"] {
     font-weight: 500;
 }
 
+QLabel[role="body"] {
+    color: #d0d0d0;
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 400;
+}
+
 QWidget[role="drag-area"] {
     background-color: #585858;
     border: 8px dashed #f76b6b;
@@ -128,4 +135,18 @@ QPushButton[role="primary"] {
 
 QPushButton[role="primary"]:hover {
     background-color: #ff8c8c;
+}
+
+QProgressBar {
+    border: none;
+    border-radius: 6px;
+    background-color: #7f7f7f;
+    min-height: 10px;
+    margin-left: 200px;
+    margin-right: 200px;
+}
+
+QProgressBar::chunk {
+    background-color: #f76b6b;
+    border-radius: 6px;
 }
