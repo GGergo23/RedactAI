@@ -83,9 +83,10 @@ class DetectionProgressView(QWidget):
         """Start the mock detection pipeline simulation."""
         ...
 
-    def update_progress(self) -> None:
+    def update_progress(self, progress: int) -> None:
         """Update the progress bar and status text."""
-        ...
+        self.progress_bar.setValue(progress)
+        self.progress_percentage_label.setText(f"{progress}%")
 
     def _on_detection_complete(self) -> None:
         """Handle detection completion and transition to results."""
