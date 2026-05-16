@@ -25,7 +25,6 @@ class DetectionProgressView(QWidget):
         self.transition_page_fn = transition_page_fn
         self.files: list[str] = []
         self.current_progress = 0
-        self.progress_timer: QTimer | None = None
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -81,7 +80,16 @@ class DetectionProgressView(QWidget):
 
     def start_detection(self) -> None:
         """Start the mock detection pipeline simulation."""
-        ...
+
+        # Reset progress state
+        self.status_label.setText("Starting detection pipeline...")
+        self.update_progress(0)
+
+        # start detection task
+        # mock for now
+        self.progress_timer = QTimer()
+        self.progress_timer.timeout.connect(lambda: self.on_detection_complete() if self.current_progress >= 100 else self.update_progress(min(100, self.current_progress + 12)))
+        self.progress_timer.start(300)
 
     def update_progress(self, progress: int) -> None:
         """Update the progress bar and status text."""
@@ -89,10 +97,13 @@ class DetectionProgressView(QWidget):
         self.progress_bar.setValue(self.current_progress)
         self.progress_percentage_label.setText(f"{self.current_progress}%")
 
-    def _on_detection_complete(self) -> None:
+    def on_detection_complete(self) -> None:
         """Handle detection completion and transition to results."""
         # TODO: results
         ...
+        
+        # DEBUG: Stop current progress simulation
+        self.progress_timer.stop()
         
         # Import here to avoid circular dependency
         from src.ui.main_window import Page
