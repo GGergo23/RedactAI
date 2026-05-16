@@ -103,6 +103,7 @@ class DetectionProgressView(QWidget):
     # TODO: Replace with real detection results object
     def on_detection_complete(self, detection_results: object) -> None:
         """Handle detection completion and transition to results."""
+        self.status_label.setText("Detection complete!")
         # DEBUG: Stop current progress simulation
         self.progress_timer.stop()
         
