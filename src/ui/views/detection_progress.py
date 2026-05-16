@@ -90,6 +90,9 @@ class DetectionProgressView(QWidget):
         self.progress_timer = QTimer()
         self.progress_timer.timeout.connect(lambda: self.on_detection_complete() if self.current_progress >= 100 else self.update_progress(min(100, self.current_progress + 12)))
         self.progress_timer.start(300)
+        
+        # Update status text
+        self.status_label.setText("Running detection pipeline...")
 
     def update_progress(self, progress: int) -> None:
         """Update the progress bar and status text."""
