@@ -85,8 +85,9 @@ class DetectionProgressView(QWidget):
 
     def update_progress(self, progress: int) -> None:
         """Update the progress bar and status text."""
-        self.progress_bar.setValue(progress)
-        self.progress_percentage_label.setText(f"{progress}%")
+        self.current_progress = progress
+        self.progress_bar.setValue(self.current_progress)
+        self.progress_percentage_label.setText(f"{self.current_progress}%")
 
     def _on_detection_complete(self) -> None:
         """Handle detection completion and transition to results."""
