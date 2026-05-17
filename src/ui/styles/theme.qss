@@ -137,6 +137,12 @@ QPushButton[role="primary"]:hover {
     background-color: #ff8c8c;
 }
 
+QPushButton:disabled {
+    background-color: #6f6f6f;
+    color: #bdbdbd;
+    border: none;
+}
+
 QProgressBar {
     border: none;
     border-radius: 6px;
