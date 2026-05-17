@@ -6,6 +6,7 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QLabel,
     QProgressBar,
+    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -25,6 +26,7 @@ class DetectionProgressView(QWidget):
         self.transition_page_fn = transition_page_fn
         self.files: list[str] = []
         self.current_progress = 0
+        self.progress_timer: QTimer | None = None  # debug progress simulation
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -56,12 +58,20 @@ class DetectionProgressView(QWidget):
         self.progress_percentage_label.setProperty("role", "body")
         self.progress_percentage_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        # Bottom action
+        self.cancel_button = QPushButton("Cancel and Return to Home")
+        self.cancel_button.setProperty("role", "primary")
+        self.cancel_button.setMinimumWidth(240)
+        self.cancel_button.setEnabled(False)
+        self.cancel_button.clicked.connect(self.cancel)
+
         # Add components to layout
         layout.addStretch()
         layout.addWidget(title)
         layout.addWidget(self.status_label)
         layout.addWidget(self.progress_bar)
         layout.addWidget(self.progress_percentage_label)
+        layout.addWidget(self.cancel_button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addStretch()
 
     def setLaunchExtra(self, **kwargs: object) -> None:
@@ -80,6 +90,8 @@ class DetectionProgressView(QWidget):
 
     def start_detection(self) -> None:
         """Start the mock detection pipeline simulation."""
+        if self._is_detection_task_running():
+            return  # Prevent starting multiple tasks
 
         # Reset progress state
         self.status_label.setText("Starting detection pipeline...")
@@ -96,6 +108,7 @@ class DetectionProgressView(QWidget):
             )
         )
         self.progress_timer.start(300)
+        self.cancel_button.setEnabled(True)
 
         # Update status text
         self.status_label.setText("Running detection pipeline...")
@@ -106,14 +119,37 @@ class DetectionProgressView(QWidget):
         self.progress_bar.setValue(self.current_progress)
         self.progress_percentage_label.setText(f"{self.current_progress}%")
 
-    # TODO: Replace with real detection results object
+    # TODO: Replace type with real detection results object
     def on_detection_complete(self, detection_results: object) -> None:
         """Handle detection completion and transition to results."""
         self.status_label.setText("Detection complete!")
-        # DEBUG: Stop current progress simulation
+        self.cancel_button.setEnabled(False)
+
+        # Debug: stop the progress timer if it's still running
         self.progress_timer.stop()
 
         # Import here to avoid circular dependency
         from src.ui.main_window import Page
 
         self.transition_page_fn(Page.PLACEHOLDER, results=detection_results)
+
+    def cancel(self) -> None:
+        """Cancel the running task and return to the homepage."""
+        if not self._is_detection_task_running():
+            return
+
+        # update UI state
+        self.cancel_button.setEnabled(False)
+        self.status_label.setText("Cancelling...")
+
+        # Cancel the task
+        self.progress_timer.stop()
+
+        # Import here to avoid circular dependency
+        from src.ui.main_window import Page
+
+        self.transition_page_fn(Page.HOME)
+
+    def _is_detection_task_running(self) -> bool:
+        """Check if the detection task is currently running."""
+        return self.progress_timer is not None and self.progress_timer.isActive()
