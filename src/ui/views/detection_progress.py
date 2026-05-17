@@ -5,8 +5,8 @@ from typing import Callable
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QLabel,
-    QPushButton,
     QProgressBar,
+    QPushButton,
     QVBoxLayout,
     QWidget,
 )
