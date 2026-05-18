@@ -1,12 +1,61 @@
 """AI module for RedactAI -- ML models for detecting sensitive information."""
 
+from functools import lru_cache
+from importlib import import_module
+from typing import TYPE_CHECKING, Any
+
 from src.ai.ocr import ocr
-from src.ai.types import BoundingBox, OCRResult, OCRWord, TextDetection
+from src.ai.types import (
+    BoundingBox,
+    DetectedObject,
+    ModelLoadError,
+    OCRResult,
+    OCRWord,
+    TextDetection,
+)
+
+if TYPE_CHECKING:
+    from src.ai.object_detector import (
+        FACE_MODEL_FILENAME,
+        LICENSE_PLATE_MODEL_FILENAME,
+        FaceYOLOv8Backend,
+        LicensePlateYOLOv11Backend,
+        ObjectDetector,
+        default_model_paths,
+    )
 
 __all__ = [
     "BoundingBox",
+    "DetectedObject",
+    "FACE_MODEL_FILENAME",
+    "FaceYOLOv8Backend",
+    "LICENSE_PLATE_MODEL_FILENAME",
+    "LicensePlateYOLOv11Backend",
+    "ModelLoadError",
     "OCRResult",
     "OCRWord",
+    "ObjectDetector",
     "TextDetection",
+    "default_model_paths",
     "ocr",
 ]
+
+_OBJECT_DETECTOR_EXPORTS = {
+    "FACE_MODEL_FILENAME",
+    "LICENSE_PLATE_MODEL_FILENAME",
+    "FaceYOLOv8Backend",
+    "LicensePlateYOLOv11Backend",
+    "ObjectDetector",
+    "default_model_paths",
+}
+
+
+@lru_cache(maxsize=1)
+def _get_object_detector_module() -> Any:
+    return import_module("src.ai.object_detector")
+
+
+def __getattr__(name: str) -> Any:
+    if name in _OBJECT_DETECTOR_EXPORTS:
+        return getattr(_get_object_detector_module(), name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

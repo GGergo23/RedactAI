@@ -12,6 +12,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+class ModelLoadError(RuntimeError):
+    """Raised when a local AI model cannot be loaded."""
+
+
 @dataclass(frozen=True, slots=True)
 class NLPEntity:
     """Single PII detection returned by the NLP detector.
@@ -81,6 +85,15 @@ class TextDetection:
 
     text: str
     words: list[OCRWord]
+
+
+@dataclass(frozen=True, slots=True)
+class DetectedObject:
+    """A detected visual object returned by an object detector."""
+
+    label: str
+    bounding_box: BoundingBox
+    confidence: float
 
 
 @dataclass(frozen=True)

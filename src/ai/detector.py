@@ -8,12 +8,8 @@ from pathlib import Path
 import spacy
 from spacy.language import Language
 
-from src.ai.types import NLPEntity
+from src.ai.types import ModelLoadError, NLPEntity
 from src.persistance.resource_loader import ResourceLoader
-
-
-class ModelLoadError(RuntimeError):
-    """Raised when the local spaCy model cannot be loaded."""
 
 
 class NLPDetector:

@@ -8,13 +8,14 @@ dependencies = [
     "flake8>=7.3.0",
     "isort>=5.13.0",
     "numpy>=2.3.4",
-    "opencv-python-headless>=4.10.0",
+    "opencv-python>=4.10.0",
     "Pillow>=11.0.0",
     "pyqt6>=6.11.0",
     "pytesseract>=0.3.10",
     "pytest>=9.0.3",
     "pytest-cov>=4.1.0",
     "spacy>=3.8.13",
+    "ultralytics>=8.0.0",
 ]
 
 [project.scripts]
