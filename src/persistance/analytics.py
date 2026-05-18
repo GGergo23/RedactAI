@@ -1,14 +1,14 @@
 """Analytics submission for RedactAI.
 
-Submits a redaction-count and a test-mode flag to a developer-owned Google Form.
-The submission is gated on user consent: if consent is not granted, the function
-returns immediately and makes no network call.
+Submits a redaction count to a developer-owned Google Form. The submission is
+gated on user consent: if consent is not granted, the function returns
+immediately and makes no network call.
 
-The form URL and field IDs live in :mod:`src.persistance.analytics_config` and
-ship inside the binary. Setting any of those constants to an empty string
-disables analytics submission (the function returns ``False`` without making a
-network call). The submission carries only the integer count and the boolean
-flag; no image content or other identifying information is transmitted.
+The form URL and field ID live in :mod:`src.persistance.analytics_config` and
+ship inside the binary. Setting either constant to an empty string disables
+analytics submission (the function returns ``False`` without making a network
+call). The submission carries only the integer count; no image content or
+other identifying information is transmitted.
 """
 
 from __future__ import annotations
@@ -22,7 +22,6 @@ from src.persistance import analytics_config
 
 def submit_analytics(
     redaction_count: int,
-    test_mode: bool,
     consent_granted: bool,
     *,
     timeout: float = 5.0,
@@ -31,7 +30,8 @@ def submit_analytics(
 
     Args:
         redaction_count: The number of redactions applied in the session.
-        test_mode: Whether the application is running in test mode.
+            Must be non-negative; negative values cause the function to return
+            ``False`` without making a network call.
         consent_granted: Whether the user has granted consent for analytics.
             When ``False`` the function returns immediately and performs no
             side effect (no config reads, no logging, no network call).
@@ -39,24 +39,23 @@ def submit_analytics(
 
     Returns:
         ``True`` when the form accepted the submission with a 2xx status,
-        ``False`` otherwise (consent denied, config blank, network error,
-        or non-2xx response).
+        ``False`` otherwise (consent denied, negative count, config blank,
+        network error, or non-2xx response).
     """
     if not consent_granted:
         return False
 
-    form_url = analytics_config.FORM_URL
-    entry_count = analytics_config.ENTRY_COUNT
-    entry_test_mode = analytics_config.ENTRY_TEST_MODE
-    if not form_url or not entry_count or not entry_test_mode:
+    if redaction_count < 0:
         return False
 
-    payload = urllib.parse.urlencode(
-        {
-            entry_count: str(int(redaction_count)),
-            entry_test_mode: "true" if test_mode else "false",
-        }
-    ).encode("utf-8")
+    form_url = analytics_config.FORM_URL
+    entry_count = analytics_config.ENTRY_COUNT
+    if not form_url or not entry_count:
+        return False
+
+    payload = urllib.parse.urlencode({entry_count: str(int(redaction_count))}).encode(
+        "utf-8"
+    )
 
     request = urllib.request.Request(
         url=form_url,
