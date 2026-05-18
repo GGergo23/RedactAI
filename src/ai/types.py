@@ -12,6 +12,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+class ModelLoadError(RuntimeError):
+    """Raised when a local AI model cannot be loaded."""
+
+
 @dataclass(frozen=True, slots=True)
 class NLPEntity:
     """Single PII detection returned by the NLP detector.

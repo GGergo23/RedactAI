@@ -5,7 +5,14 @@ from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 from src.ai.ocr import ocr
-from src.ai.types import BoundingBox, DetectedObject, OCRResult, OCRWord, TextDetection
+from src.ai.types import (
+    BoundingBox,
+    DetectedObject,
+    ModelLoadError,
+    OCRResult,
+    OCRWord,
+    TextDetection,
+)
 
 if TYPE_CHECKING:
     from src.ai.object_detector import (
@@ -13,10 +20,8 @@ if TYPE_CHECKING:
         LICENSE_PLATE_MODEL_FILENAME,
         FaceYOLOv8Backend,
         LicensePlateYOLOv11Backend,
-        ModelLoadError,
         ObjectDetector,
         default_model_paths,
-        download_default_models,
     )
 
 __all__ = [
@@ -32,7 +37,6 @@ __all__ = [
     "ObjectDetector",
     "TextDetection",
     "default_model_paths",
-    "download_default_models",
     "ocr",
 ]
 
@@ -41,10 +45,8 @@ _OBJECT_DETECTOR_EXPORTS = {
     "LICENSE_PLATE_MODEL_FILENAME",
     "FaceYOLOv8Backend",
     "LicensePlateYOLOv11Backend",
-    "ModelLoadError",
     "ObjectDetector",
     "default_model_paths",
-    "download_default_models",
 }
 
 

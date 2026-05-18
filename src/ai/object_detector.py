@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from PIL import Image
 
-from src.ai.types import BoundingBox, DetectedObject
+from src.ai.types import BoundingBox, DetectedObject, ModelLoadError
 from src.persistance.resource_loader import ResourceLoader
 
 if TYPE_CHECKING:
@@ -29,21 +29,7 @@ if TYPE_CHECKING:
 FACE_MODEL_FILENAME = "yolov8n-face.pt"
 LICENSE_PLATE_MODEL_FILENAME = "license-plate-finetune-v1n.pt"
 
-FACE_MODEL_URL = (
-    "https://github.com/akanametov/yolo-face/releases/download/1.0.0/yolov8n-face.pt"
-)
-
-LICENSE_PLATE_MODEL_URL = (
-    "https://huggingface.co/morsetechlab/yolov11-license-plate-detection/"
-    "resolve/main/license-plate-finetune-v1n.pt"
-)
-
 DEFAULT_MODELS_DIR = "assets/models"
-
-
-class ModelLoadError(RuntimeError):
-    """Raised when an object-detection model cannot be loaded."""
-
 
 class ObjectDetectionBackend(Protocol):
     """Backend contract for object detection models."""
@@ -63,41 +49,32 @@ def _load_yolo_class() -> type[YOLOType]:
     return YOLO
 
 
-def _default_download_dir() -> Path:
-    return Path.home() / ".cache" / "redactai" / "models"
-
-
-def _normalize_model_filename(filename: str) -> str:
-    if not filename or filename in {".", ".."}:
-        raise ValueError(f"Invalid model filename: {filename!r}")
-    if ".." in filename:
-        raise ValueError(f"Invalid model filename: {filename!r}")
-    if "/" in filename or "\\" in filename:
-        raise ValueError(f"Invalid model filename: {filename!r}")
-    return filename
-
-
-@dataclass(slots=True)
 class ObjectDetector:
     """High-level orchestrator for face and license plate detection."""
 
-    face_backend: ObjectDetectionBackend | None = None
-    license_plate_backend: ObjectDetectionBackend | None = None
-    face_model_path: Path | None = None
-    license_plate_model_path: Path | None = None
+    __slots__ = (
+        "face_backend",
+        "license_plate_backend",
+        "face_model_path",
+        "license_plate_model_path",
+    )
+
+    def __init__(
+        self,
+        face_backend: ObjectDetectionBackend | None = None,
+        license_plate_backend: ObjectDetectionBackend | None = None,
+        face_model_path: Path | None = None,
+        license_plate_model_path: Path | None = None,
+    ) -> None:
+        self.face_backend = face_backend
+        self.license_plate_backend = license_plate_backend
+        self.face_model_path = face_model_path
+        self.license_plate_model_path = license_plate_model_path
 
     def _resolve_model_path(self, filename: str, configured: Path | None) -> Path:
-        filename = _normalize_model_filename(filename)
         if configured is not None:
             return configured
-        resource_relative_path = Path(DEFAULT_MODELS_DIR) / filename
-        resource_path = ResourceLoader.get_resource_path(str(resource_relative_path))
-        if resource_path.exists():
-            return resource_path
-        cached_path = _default_download_dir() / filename
-        if cached_path.exists():
-            return cached_path
-        return resource_path
+        return ResourceLoader.get_resource_path(f"{DEFAULT_MODELS_DIR}/{filename}")
 
     def _ensure_backends(self) -> None:
         if self.face_backend is None:
@@ -107,7 +84,7 @@ class ObjectDetector:
             if not face_model_path.exists():
                 raise ModelLoadError(
                     f"Face model not found at {face_model_path}. "
-                    "Download it or call download_default_models()."
+                    "Download the model into assets/models/ before running."
                 )
             self.face_backend = FaceYOLOv8Backend(face_model_path)
 
@@ -118,7 +95,7 @@ class ObjectDetector:
             if not plate_model_path.exists():
                 raise ModelLoadError(
                     f"License plate model not found at {plate_model_path}. "
-                    "Download it or call download_default_models()."
+                    "Download the model into assets/models/ before running."
                 )
             self.license_plate_backend = LicensePlateYOLOv11Backend(plate_model_path)
 
@@ -249,28 +226,4 @@ def default_model_paths() -> dict[str, Path]:
         "license_plate": ResourceLoader.get_resource_path(
             f"{DEFAULT_MODELS_DIR}/{LICENSE_PLATE_MODEL_FILENAME}"
         ),
-    }
-
-
-def download_default_models(destination_dir: Path | None = None) -> dict[str, Path]:
-    """Ensure the model directory exists and download face + plate weights."""
-    from urllib.request import urlretrieve
-
-    model_dir = (
-        destination_dir if destination_dir is not None else _default_download_dir()
-    )
-    model_dir.mkdir(parents=True, exist_ok=True)
-
-    face_target = model_dir / FACE_MODEL_FILENAME
-    plate_target = model_dir / LICENSE_PLATE_MODEL_FILENAME
-
-    if not face_target.exists():
-        urlretrieve(FACE_MODEL_URL, face_target)
-
-    if not plate_target.exists():
-        urlretrieve(LICENSE_PLATE_MODEL_URL, plate_target)
-
-    return {
-        FACE_MODEL_FILENAME: face_target,
-        LICENSE_PLATE_MODEL_FILENAME: plate_target,
     }

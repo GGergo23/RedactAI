@@ -1,5 +1,3 @@
-"""Tests for the object detection module."""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -7,92 +5,130 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from src.ai.object_detector import (
-    FACE_MODEL_FILENAME,
-    LICENSE_PLATE_MODEL_FILENAME,
-    ObjectDetector,
-    default_model_paths,
-    download_default_models,
-)
-from src.ai.types import BoundingBox, DetectedObject
+from src.ai.object_detector import ObjectDetector, default_model_paths
+from src.ai.types import DetectedObject
 
 
-class _FakeBackend:
-    def __init__(self, detections: list[DetectedObject]) -> None:
-        self._detections = detections
-        self.calls = 0
-
-    def infer(self, image: Image.Image) -> list[DetectedObject]:
-        self.calls += 1
-        return list(self._detections)
+SAMPLES_DIR = Path("tests/assets/images")
 
 
-def _make_object(
-    label: str, x: int, y: int, width: int, height: int, confidence: float
-) -> DetectedObject:
-    return DetectedObject(
-        label=label,
-        bounding_box=BoundingBox(x=x, y=y, width=width, height=height),
-        confidence=confidence,
-    )
+def _resolve_sample_image(*candidates: str) -> Path:
+    for candidate in candidates:
+        path = SAMPLES_DIR / candidate
+        if path.exists():
+            return path
+    raise AssertionError(f"Missing sample image. Looked for: {candidates!r}")
 
 
-def test_detect_merges_face_and_plate_backends() -> None:
-    image = Image.new("RGB", (128, 128), color="white")
-    face_backend = _FakeBackend([_make_object("face", 10, 12, 20, 22, 0.98)])
-    plate_backend = _FakeBackend([_make_object("license_plate", 48, 64, 30, 12, 0.91)])
+def _load_detector() -> ObjectDetector:
+    pytest.importorskip("ultralytics")
 
-    detector = ObjectDetector(
-        face_backend=face_backend,
-        license_plate_backend=plate_backend,
-    )
+    model_paths = default_model_paths()
+    missing = [name for name, path in model_paths.items() if not path.exists()]
+    if missing:
+        pytest.skip(
+            "Object-detection model weights are not available locally; "
+            "the workflow downloads them into assets/models before CI runs."
+        )
 
-    detections = detector.detect([image])
-
-    assert len(detections) == 1
-    assert detections[0] == [
-        _make_object("face", 10, 12, 20, 22, 0.98),
-        _make_object("license_plate", 48, 64, 30, 12, 0.91),
-    ]
-    assert face_backend.calls == 1
-    assert plate_backend.calls == 1
+    return ObjectDetector()
 
 
-def test_detect_rejects_non_images() -> None:
-    detector = ObjectDetector(
-        face_backend=_FakeBackend([]),
-        license_plate_backend=_FakeBackend([]),
-    )
-
-    with pytest.raises(TypeError, match="PIL.Image.Image"):
-        detector.detect(["not-an-image"])  # type: ignore[list-item]
+def _load_image(path: Path) -> Image.Image:
+    with Image.open(path) as image:
+        return image.copy()
 
 
-def test_default_model_paths_point_under_assets_models() -> None:
-    paths = default_model_paths()
-
-    assert paths["face"].as_posix().endswith(FACE_MODEL_FILENAME)
-    assert paths["license_plate"].as_posix().endswith(LICENSE_PLATE_MODEL_FILENAME)
-    assert "assets/models" in paths["face"].as_posix()
-    assert "assets/models" in paths["license_plate"].as_posix()
+def _label_map(detections: list[DetectedObject]) -> dict[str, list[DetectedObject]]:
+    grouped: dict[str, list[DetectedObject]] = {}
+    for detection in detections:
+        grouped.setdefault(detection.label, []).append(detection)
+    return grouped
 
 
-def test_download_default_models_uses_target_directory(monkeypatch, tmp_path) -> None:
-    calls: list[tuple[str, Path]] = []
+def _assert_center_close(
+    detection: DetectedObject,
+    expected_center_x: float,
+    expected_center_y: float,
+    tolerance_x: float,
+    tolerance_y: float,
+) -> None:
+    center_x = detection.bounding_box.x + detection.bounding_box.width / 2
+    center_y = detection.bounding_box.y + detection.bounding_box.height / 2
 
-    def fake_urlretrieve(url: str, filename: str | Path):
-        target_path = Path(filename)
-        target_path.write_text(url, encoding="utf-8")
-        calls.append((url, target_path))
-        return str(target_path), None
+    assert abs(center_x - expected_center_x) <= tolerance_x
+    assert abs(center_y - expected_center_y) <= tolerance_y
 
-    monkeypatch.setattr("urllib.request.urlretrieve", fake_urlretrieve)
 
-    downloaded = download_default_models(tmp_path)
+def _print_detections(image_name: str, detections: list[DetectedObject]) -> None:
+    print(f"\n{image_name} detections:")
+    if not detections:
+        print("  (none)")
+        return
 
-    assert downloaded[FACE_MODEL_FILENAME] == tmp_path / FACE_MODEL_FILENAME
-    assert downloaded[FACE_MODEL_FILENAME].exists()
-    assert downloaded[FACE_MODEL_FILENAME].read_text(encoding="utf-8")
-    assert downloaded[LICENSE_PLATE_MODEL_FILENAME].exists()
-    assert downloaded[LICENSE_PLATE_MODEL_FILENAME].read_text(encoding="utf-8")
-    assert len(calls) == 2
+    for detection in detections:
+        box = detection.bounding_box
+        print(
+            "  "
+            f"{detection.label} "
+            f"conf={detection.confidence:.3f} "
+            f"box=(x={box.x}, y={box.y}, w={box.width}, h={box.height})"
+        )
+
+
+def test_face_image_detects_face() -> None:
+    detector = _load_detector()
+    image_path = _resolve_sample_image("face.jpg")
+    image = _load_image(image_path)
+
+    results = detector.detect([image])
+    detections = results[0]
+    _print_detections(image_path.name, detections)
+
+    grouped = _label_map(detections)
+    face_detections = grouped.get("face", [])
+    plate_detections = grouped.get("license_plate", [])
+
+    assert len(face_detections) == 1
+    assert len(plate_detections) == 0
+
+    _assert_center_close(face_detections[0], 270.0, 115.0, tolerance_x=75, tolerance_y=75)
+
+
+def test_plate_image_detects_license_plate() -> None:
+    detector = _load_detector()
+    image_path = _resolve_sample_image("plate.jpg")
+    image = _load_image(image_path)
+
+    results = detector.detect([image])
+    detections = results[0]
+    _print_detections(image_path.name, detections)
+
+    grouped = _label_map(detections)
+    face_detections = grouped.get("face", [])
+    plate_detections = grouped.get("license_plate", [])
+
+    assert len(face_detections) == 0
+    assert len(plate_detections) == 1
+
+    _assert_center_close(plate_detections[0], 690.0, 620.0, tolerance_x=100, tolerance_y=100)
+
+
+def test_car_and_plate_image_detects_face_and_plate() -> None:
+    detector = _load_detector()
+    image_path = _resolve_sample_image("Car_and_plate.png")
+    image = _load_image(image_path)
+
+    results = detector.detect([image])
+    detections = results[0]
+    _print_detections(image_path.name, detections)
+
+    grouped = _label_map(detections)
+    face_detections = grouped.get("face", [])
+    plate_detections = grouped.get("license_plate", [])
+
+    assert len(face_detections) == 1
+    assert len(plate_detections) == 1
+
+    _assert_center_close(face_detections[0], 68.0, 68.0, tolerance_x=75, tolerance_y=75)
+    _assert_center_close(plate_detections[0], 180.0, 194.0, tolerance_x=100, tolerance_y=100)

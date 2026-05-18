@@ -43,11 +43,23 @@ jobs:
       - name: Download object detection models
         run: |
           uv run python - <<'PY'
-          from src.ai.object_detector import download_default_models
+          import urllib.request
+          from pathlib import Path
 
-          downloaded = download_default_models()
-          for name, path in downloaded.items():
-            print(f'{name}: {path}')
+          model_dir = Path('assets/models')
+          model_dir.mkdir(parents=True, exist_ok=True)
+
+          downloads = {
+              'yolov8n-face.pt': 'https://github.com/akanametov/yolo-face/releases/download/1.0.0/yolov8n-face.pt',
+              'license-plate-finetune-v1n.pt': 'https://huggingface.co/morsetechlab/yolov11-license-plate-detection/resolve/main/license-plate-finetune-v1n.pt',
+          }
+
+          for filename, url in downloads.items():
+              target = model_dir / filename
+              if not target.exists():
+                  print(f'Downloading {filename}...')
+                  urllib.request.urlretrieve(url, target)
+              print(f'{filename}: {target}')
           PY
 
       - name: Build with PyInstaller
