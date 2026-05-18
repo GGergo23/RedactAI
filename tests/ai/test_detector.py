@@ -4,8 +4,7 @@ import pytest
 
 import src.ai.detector as detector_module
 from src.ai.detector import NLPDetector
-from src.ai.types import ModelLoadError
-from src.ai.types import NLPEntity
+from src.ai.types import ModelLoadError, NLPEntity
 from src.persistance.resource_loader import ResourceLoader
 
 
