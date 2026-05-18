@@ -53,7 +53,7 @@ class MainWindow(QMainWindow):
         self.stacked_widget.addWidget(self.placeholder)
 
         # Show homepage first
-        self.stacked_widget.setCurrentWidget(self.detection_progress)
+        self.stacked_widget.setCurrentWidget(self.homepage)
 
         # first launch analytics consent
         if self._is_first_launch():
