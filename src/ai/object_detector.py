@@ -31,6 +31,7 @@ LICENSE_PLATE_MODEL_FILENAME = "license-plate-finetune-v1n.pt"
 
 DEFAULT_MODELS_DIR = "assets/models"
 
+
 class ObjectDetectionBackend(Protocol):
     """Backend contract for object detection models."""
 

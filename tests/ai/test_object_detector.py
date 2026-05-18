@@ -8,7 +8,6 @@ from PIL import Image
 from src.ai.object_detector import ObjectDetector, default_model_paths
 from src.ai.types import DetectedObject
 
-
 SAMPLES_DIR = Path("tests/assets/images")
 
 
@@ -92,7 +91,9 @@ def test_face_image_detects_face() -> None:
     assert len(face_detections) == 1
     assert len(plate_detections) == 0
 
-    _assert_center_close(face_detections[0], 270.0, 115.0, tolerance_x=75, tolerance_y=75)
+    _assert_center_close(
+        face_detections[0], 270.0, 115.0, tolerance_x=75, tolerance_y=75
+    )
 
 
 def test_plate_image_detects_license_plate() -> None:
@@ -111,7 +112,9 @@ def test_plate_image_detects_license_plate() -> None:
     assert len(face_detections) == 0
     assert len(plate_detections) == 1
 
-    _assert_center_close(plate_detections[0], 690.0, 620.0, tolerance_x=100, tolerance_y=100)
+    _assert_center_close(
+        plate_detections[0], 690.0, 620.0, tolerance_x=100, tolerance_y=100
+    )
 
 
 def test_car_and_plate_image_detects_face_and_plate() -> None:
@@ -131,4 +134,6 @@ def test_car_and_plate_image_detects_face_and_plate() -> None:
     assert len(plate_detections) == 1
 
     _assert_center_close(face_detections[0], 68.0, 68.0, tolerance_x=75, tolerance_y=75)
-    _assert_center_close(plate_detections[0], 180.0, 194.0, tolerance_x=100, tolerance_y=100)
+    _assert_center_close(
+        plate_detections[0], 180.0, 194.0, tolerance_x=100, tolerance_y=100
+    )
