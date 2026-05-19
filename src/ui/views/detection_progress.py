@@ -1,5 +1,6 @@
 """Detection progress view showing pipeline execution status."""
 
+from pathlib import Path
 from typing import Callable
 
 from PyQt6.QtCore import Qt, QTimer
@@ -10,6 +11,8 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+_SAMPLE_DIR = Path(__file__).parent.parent.parent.parent / "tests" / "assets" / "images"
 
 
 class DetectionProgressView(QWidget):
@@ -119,19 +122,75 @@ class DetectionProgressView(QWidget):
         self.progress_bar.setValue(self.current_progress)
         self.progress_percentage_label.setText(f"{self.current_progress}%")
 
-    # TODO: Replace type with real detection results object
+    # TODO: Replace with real detection results object when T2.1 lands
     def on_detection_complete(self, detection_results: object) -> None:
-        """Handle detection completion and transition to results."""
+        """Handle detection completion and transition to the review page."""
         self.status_label.setText("Detection complete!")
         self.cancel_button.setEnabled(False)
 
-        # Debug: stop the progress timer if it's still running
         self.progress_timer.stop()
 
         # Import here to avoid circular dependency
         from src.ui.main_window import Page
 
-        self.transition_page_fn(Page.PLACEHOLDER, results=detection_results)
+        mock_input = self._build_mock_review_input()
+        self.transition_page_fn(Page.REVIEW, input=mock_input)
+
+    def _build_mock_review_input(self) -> object:
+        """Build a mock ReviewPageInput from sample images with hand-coded boxes.
+
+        Loads face.jpg and plate.jpg from the test-assets directory and
+        attaches approximate bounding boxes that match the known sample-image
+        ground truth (see tests/ai/test_object_detector.py).  This mock is
+        intentionally hardcoded and will be replaced by the real pipeline
+        output in T2.1.
+        """
+        from src.ai.types import BoundingBox, DetectedObject
+        from src.persistance.image_reader import read_images
+        from src.ui.views.review.types import (
+            LoadedImageDetections,
+            ReviewPageInput,
+        )
+
+        sample_paths = [
+            _SAMPLE_DIR / "face.jpg",
+            _SAMPLE_DIR / "plate.jpg",
+        ]
+        batch = read_images(sample_paths)
+
+        # Hand-coded detections matching known test-image ground truth
+        _mock_boxes: dict[str, list[DetectedObject]] = {
+            "face.jpg": [
+                DetectedObject(
+                    label="face",
+                    bounding_box=BoundingBox(x=195, y=40, width=150, height=150),
+                    confidence=0.92,
+                )
+            ],
+            "plate.jpg": [
+                DetectedObject(
+                    label="license_plate",
+                    bounding_box=BoundingBox(x=590, y=520, width=200, height=200),
+                    confidence=0.88,
+                )
+            ],
+        }
+
+        loaded: list[LoadedImageDetections] = []
+        for path, image in batch.loaded_images:
+            detections = _mock_boxes.get(path.name, [])
+            loaded.append(
+                LoadedImageDetections(
+                    path=path,
+                    image=image,
+                    detections=detections,
+                )
+            )
+
+        return ReviewPageInput(
+            failed_paths=batch.failed_paths,
+            loaded_images=loaded,
+        )
 
     def cancel(self) -> None:
         """Cancel the running task and return to the homepage."""
