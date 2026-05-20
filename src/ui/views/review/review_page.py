@@ -5,8 +5,6 @@ from __future__ import annotations
 from typing import Callable
 
 from PyQt6.QtCore import Qt
-
-from src.ai.types import BoundingBox
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -15,8 +13,70 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.ai.types import BoundingBox
+from src.redactEngine.redactor import RedactionTarget, RedactionType
 from src.ui.views.review.image_canvas import ImageCanvas
-from src.ui.views.review.types import ReviewPageInput
+from src.ui.views.review.types import (
+    ApprovedImageRedactions,
+    ReviewPageInput,
+    ReviewPageOutput,
+)
+
+
+def assemble_output(
+    page_input: ReviewPageInput,
+    ai_state: dict[int, list[bool]],
+    manual_state: dict[int, list[tuple[BoundingBox, bool]]],
+) -> ReviewPageOutput:
+    """Build a :class:`ReviewPageOutput` from per-image review state.
+
+    Images that were never visited (not in *ai_state*) are treated as having
+    all AI boxes accepted and no manual boxes.
+
+    Args:
+        page_input: The original input describing loaded images and detections.
+        ai_state: Per-image accepted-flags for AI detections, keyed by index.
+        manual_state: Per-image manual-box states ``(BoundingBox, accepted)``,
+            keyed by index.
+
+    Returns:
+        :class:`ReviewPageOutput` ready to forward to the next page.
+    """
+    approved_images: list[ApprovedImageRedactions] = []
+    for i, loaded in enumerate(page_input.loaded_images):
+        ai_flags = ai_state.get(i, [True] * len(loaded.detections))
+        manual_boxes = manual_state.get(i, [])
+
+        targets: list[RedactionTarget] = []
+        for det, accepted in zip(loaded.detections, ai_flags):
+            if accepted:
+                targets.append(
+                    RedactionTarget(
+                        location=det.bounding_box,
+                        redaction_type=RedactionType.BLACK_BAR,
+                    )
+                )
+        for bb, accepted in manual_boxes:
+            if accepted:
+                targets.append(
+                    RedactionTarget(
+                        location=bb,
+                        redaction_type=RedactionType.BLACK_BAR,
+                    )
+                )
+
+        approved_images.append(
+            ApprovedImageRedactions(
+                path=loaded.path,
+                image=loaded.image,
+                approved_targets=targets,
+            )
+        )
+
+    return ReviewPageOutput(
+        failed_paths=page_input.failed_paths,
+        loaded_images=approved_images,
+    )
 
 
 class ReviewPageView(QWidget):
@@ -88,7 +148,8 @@ class ReviewPageView(QWidget):
 
         self.apply_button = QPushButton("Apply Redactions")
         self.apply_button.setProperty("role", "primary")
-        self.apply_button.setEnabled(False)  # wired in Phase 5
+        self.apply_button.setEnabled(False)
+        self.apply_button.clicked.connect(self._apply_redactions)
 
         nav_layout.addWidget(self.prev_button)
         nav_layout.addStretch()
@@ -200,6 +261,7 @@ class ReviewPageView(QWidget):
 
         self.prev_button.setEnabled(index > 0)
         self.next_button.setEnabled(index < total - 1)
+        self.apply_button.setEnabled(True)
 
     def _go_prev(self) -> None:
         """Navigate to the previous image."""
@@ -214,6 +276,20 @@ class ReviewPageView(QWidget):
             self._snapshot_current()
             self._current_index += 1
             self._show_image(self._current_index)
+
+    def _apply_redactions(self) -> None:
+        """Snapshot current state, assemble output, and forward to the next page."""
+        if self._input is None:
+            return
+        self._snapshot_current()
+        output = assemble_output(
+            self._input,
+            self._image_review_state,
+            self._image_manual_state,
+        )
+        from src.ui.main_window import Page
+
+        self.transition_page_fn(Page.PLACEHOLDER, output=output)
 
     def _go_home(self) -> None:
         """Navigate back to the home page."""
