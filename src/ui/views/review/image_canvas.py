@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from PIL import Image
 from PyQt6.QtCore import QPointF, QRectF, Qt
 from PyQt6.QtGui import QBrush, QColor, QImage, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsScene, QGraphicsView
-from PIL import Image
 
 from src.ai.types import BoundingBox, DetectedObject
 
