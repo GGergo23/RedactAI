@@ -279,7 +279,6 @@ class ImageCanvas(QGraphicsView):
         item = ManualBoxItem(bb)
         self._scene.addItem(item)
         self._manual_items.append(item)
-        print(f"[ImageCanvas] manual box: {bb}")
 
         event.accept()
 
