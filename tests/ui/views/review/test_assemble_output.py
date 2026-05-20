@@ -46,6 +46,22 @@ def test_all_ai_rejected() -> None:
     assert result.loaded_images[0].approved_targets == []
 
 
+def test_missing_ai_flags_default_to_accepted() -> None:
+    det1 = _det(0, 0, 10, 10)
+    det2 = _det(20, 20, 5, 5)
+
+    result = assemble_output(
+        _input([det1, det2]),
+        {0: [False]},
+        {},
+    )
+
+    targets = result.loaded_images[0].approved_targets
+    assert len(targets) == 1
+    assert targets[0].location == det2.bounding_box
+    assert targets[0].redaction_type == RedactionType.BLACK_BAR
+
+
 def test_mix_accepted_rejected_ai_plus_manual() -> None:
     det1 = _det(0, 0, 10, 10)
     det2 = _det(20, 20, 5, 5)
