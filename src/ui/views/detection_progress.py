@@ -136,7 +136,7 @@ class DetectionProgressView(QWidget):
         mock_input = self._build_mock_review_input()
         self.transition_page_fn(Page.REVIEW, input=mock_input)
 
-    def _build_mock_review_input(self) -> object:
+    def _build_mock_review_input(self) -> "ReviewPageInput":
         """Build a mock ReviewPageInput from sample images with hand-coded boxes.
 
         Loads face.jpg and plate.jpg from the test-assets directory and
