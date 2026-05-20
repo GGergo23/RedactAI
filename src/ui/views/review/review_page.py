@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Callable
 
 from PyQt6.QtCore import Qt
+
+from src.ai.types import BoundingBox
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -31,8 +33,10 @@ class ReviewPageView(QWidget):
         self.transition_page_fn = transition_page_fn
         self._input: ReviewPageInput | None = None
         self._current_index: int = 0
-        # Per-image toggle state: {image_index: [accepted_flag, ...]}
+        # Per-image AI-box toggle state: {image_index: [accepted_flag, ...]}
         self._image_review_state: dict[int, list[bool]] = {}
+        # Per-image manual boxes: {image_index: [(BoundingBox, accepted), ...]}
+        self._image_manual_state: dict[int, list[tuple[BoundingBox, bool]]] = {}
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -142,6 +146,7 @@ class ReviewPageView(QWidget):
         else:
             self._current_index = 0
             self._image_review_state = {}
+            self._image_manual_state = {}
             self._show_image(self._current_index)
 
     def _show_no_input_state(self) -> None:
@@ -163,10 +168,13 @@ class ReviewPageView(QWidget):
         self.apply_button.setEnabled(False)
 
     def _snapshot_current(self) -> None:
-        """Save the current image's toggle state before navigating away."""
+        """Save the current image's AI toggle and manual-box state before navigating."""
         if self._input and self._input.loaded_images:
             self._image_review_state[self._current_index] = (
                 self.canvas.get_detection_flags()
+            )
+            self._image_manual_state[self._current_index] = (
+                self.canvas.get_manual_box_states()
             )
 
     def _show_image(self, index: int) -> None:
@@ -186,6 +194,9 @@ class ReviewPageView(QWidget):
 
         if index in self._image_review_state:
             self.canvas.apply_detection_flags(self._image_review_state[index])
+
+        if index in self._image_manual_state:
+            self.canvas.restore_manual_boxes(self._image_manual_state[index])
 
         self.prev_button.setEnabled(index > 0)
         self.next_button.setEnabled(index < total - 1)
