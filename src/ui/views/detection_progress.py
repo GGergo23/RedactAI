@@ -1,9 +1,14 @@
 """Detection progress view showing pipeline execution status."""
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from PyQt6.QtCore import Qt, QTimer
+
+if TYPE_CHECKING:
+    from src.ui.views.review.types import ReviewPageInput
 from PyQt6.QtWidgets import (
     QLabel,
     QProgressBar,
