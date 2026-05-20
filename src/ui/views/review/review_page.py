@@ -31,6 +31,8 @@ class ReviewPageView(QWidget):
         self.transition_page_fn = transition_page_fn
         self._input: ReviewPageInput | None = None
         self._current_index: int = 0
+        # Per-image toggle state: {image_index: [accepted_flag, ...]}
+        self._image_review_state: dict[int, list[bool]] = {}
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -139,6 +141,7 @@ class ReviewPageView(QWidget):
             self._show_empty_state()
         else:
             self._current_index = 0
+            self._image_review_state = {}
             self._show_image(self._current_index)
 
     def _show_no_input_state(self) -> None:
@@ -159,8 +162,18 @@ class ReviewPageView(QWidget):
         self.next_button.setEnabled(False)
         self.apply_button.setEnabled(False)
 
+    def _snapshot_current(self) -> None:
+        """Save the current image's toggle state before navigating away."""
+        if self._input and self._input.loaded_images:
+            self._image_review_state[self._current_index] = (
+                self.canvas.get_detection_flags()
+            )
+
     def _show_image(self, index: int) -> None:
-        """Render image *index* in the canvas and update navigation state."""
+        """Render image *index* in the canvas and update navigation state.
+
+        Restores previously saved toggle flags if this image has been visited.
+        """
         images = self._input.loaded_images  # type: ignore[union-attr]
         item = images[index]
         total = len(images)
@@ -171,18 +184,23 @@ class ReviewPageView(QWidget):
         self.status_label.setText(f"Image {index + 1} of {total} — {item.path.name}")
         self.canvas.set_image(item.image, item.detections)
 
+        if index in self._image_review_state:
+            self.canvas.apply_detection_flags(self._image_review_state[index])
+
         self.prev_button.setEnabled(index > 0)
         self.next_button.setEnabled(index < total - 1)
 
     def _go_prev(self) -> None:
         """Navigate to the previous image."""
         if self._input and self._current_index > 0:
+            self._snapshot_current()
             self._current_index -= 1
             self._show_image(self._current_index)
 
     def _go_next(self) -> None:
         """Navigate to the next image."""
         if self._input and self._current_index < len(self._input.loaded_images) - 1:
+            self._snapshot_current()
             self._current_index += 1
             self._show_image(self._current_index)
 
