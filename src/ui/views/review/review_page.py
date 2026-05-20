@@ -48,7 +48,8 @@ def assemble_output(
         manual_boxes = manual_state.get(i, [])
 
         targets: list[RedactionTarget] = []
-        for det, accepted in zip(loaded.detections, ai_flags):
+        for det_index, det in enumerate(loaded.detections):
+            accepted = ai_flags[det_index] if det_index < len(ai_flags) else True
             if accepted:
                 targets.append(
                     RedactionTarget(
