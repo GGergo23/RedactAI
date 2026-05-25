@@ -1,143 +1,64 @@
-"""Automatic detection pipeline orchestration.
-
-The controller coordinates OCR, NLP, optional object detection, and progress
-reporting without depending on the UI layer. PyQt callers can connect the
-``progress_callback`` argument to a signal emitter.
-"""
+"""Automatic detection pipeline orchestration."""
 
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Callable, Protocol
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from pathlib import Path
+from threading import Event
 from uuid import uuid4
 
 from PIL import Image
 
 from src.ai.detector import NLPDetector
 from src.ai.ocr import ocr
-from src.ai.types import (
-    BoundingBox,
-    DetectedObject,
-    NLPEntity,
-    OCRResult,
-    TextDetection,
+from src.ai.types import BoundingBox, NLPEntity, OCRResult, TextDetection
+from src.businessLogic.pipeline_types import (
+    CompletedCountProvider,
+    DetectionCandidate,
+    ImagePipelineResult,
+    LoadedImage,
+    NLPDetectorProtocol,
+    ObjectDetectorProtocol,
+    OCRCallable,
+    PipelineProgress,
+    PipelineRunResult,
+    PipelineSettings,
+    PipelineStage,
+    PipelineStatus,
+    ProgressCallback,
+    ResultCallback,
 )
-from src.redactEngine import RedactionTarget, RedactionType
-
-MAX_IMAGES_PER_JOB = 50
+from src.persistance import read_image
 
 
-class PipelineStage(str, Enum):
-    """High-level pipeline stage reported to the UI."""
+class PipelineTask:
+    """Handle for a running non-blocking pipeline job."""
 
-    QUEUED = "queued"
-    STARTED = "started"
-    OCR_COMPLETED = "ocr_completed"
-    NLP_COMPLETED = "nlp_completed"
-    OBJECT_DETECTION_COMPLETED = "object_detection_completed"
-    REDACTION_TARGETS_READY = "redaction_targets_ready"
-    COMPLETED = "completed"
-    SKIPPED = "skipped"
-    FAILED = "failed"
+    def __init__(self, job_id: str, cancel_event: Event, future: Future) -> None:
+        self.job_id = job_id
+        self._cancel_event = cancel_event
+        self._future = future
 
+    def cancel(self) -> None:
+        """Request cancellation of the running pipeline job."""
 
-class PipelineStatus(str, Enum):
-    """Progress status for a pipeline update."""
+        self._cancel_event.set()
 
-    RUNNING = "running"
-    SUCCESS = "success"
-    SKIPPED = "skipped"
-    FAILED = "failed"
+    @property
+    def cancelled(self) -> bool:
+        """Return whether cancellation has been requested."""
 
+        return self._cancel_event.is_set()
 
-class NLPDetectorProtocol(Protocol):
-    """Minimal NLP detector contract used by the pipeline."""
+    @property
+    def done(self) -> bool:
+        """Return whether the background pipeline job has finished."""
 
-    def detect(self, text: str) -> list[NLPEntity]:
-        """Detect sensitive entities in OCR text."""
-
-
-class ObjectDetectorProtocol(Protocol):
-    """Minimal object detector contract used by the pipeline."""
-
-    def detect(self, images: list[Image.Image]) -> list[list[DetectedObject]]:
-        """Detect sensitive visual objects for each image."""
-
-
-OCRCallable = Callable[[list[Image.Image]], list[OCRResult]]
-ProgressCallback = Callable[["PipelineProgress"], None]
-CompletedCountProvider = Callable[[], int]
-
-
-@dataclass(frozen=True, slots=True)
-class PipelineSettings:
-    """Configuration for one automatic detection run."""
-
-    redaction_type: RedactionType = RedactionType.BLACK_BAR
-    enabled_text_labels: frozenset[str] = field(default_factory=frozenset)
-    enabled_object_labels: frozenset[str] = field(default_factory=frozenset)
-    max_images: int = MAX_IMAGES_PER_JOB
-    worker_count: int = 4
-
-
-@dataclass(frozen=True, slots=True)
-class DetectionCandidate:
-    """One automatically detected region that can be redacted."""
-
-    bounding_box: BoundingBox
-    source: str
-    label: str
-    confidence: float
-    text: str | None = None
-
-    def to_redaction_target(self, redaction_type: RedactionType) -> RedactionTarget:
-        """Convert this candidate into a redaction engine instruction."""
-
-        return RedactionTarget(
-            location=self.bounding_box,
-            redaction_type=redaction_type,
-        )
-
-
-@dataclass(frozen=True, slots=True)
-class ImagePipelineResult:
-    """Pipeline outcome for one input image."""
-
-    image_index: int
-    success: bool
-    candidates: list[DetectionCandidate]
-    redaction_targets: list[RedactionTarget]
-    error: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class PipelineRunResult:
-    """Aggregate result for a full pipeline job."""
-
-    job_id: str
-    total_images: int
-    processed_images: int
-    skipped_images: int
-    results: list[ImagePipelineResult]
-
-
-@dataclass(frozen=True, slots=True)
-class PipelineProgress:
-    """Progress event emitted by the pipeline controller."""
-
-    job_id: str
-    image_index: int
-    total_images: int
-    completed_images: int
-    stage: PipelineStage
-    status: PipelineStatus
-    message: str = ""
+        return self._future.done()
 
 
 class PipelineController:
-    """Coordinate automatic OCR, NLP, and object-detection redaction discovery."""
+    """Coordinate automatic OCR, NLP, and object-detection discovery."""
 
     def __init__(
         self,
@@ -148,73 +69,112 @@ class PipelineController:
         self._ocr_runner = ocr_runner
         self._nlp_detector = nlp_detector if nlp_detector is not None else NLPDetector()
         self._object_detector = object_detector
+        self._task_executor = ThreadPoolExecutor(max_workers=1)
 
-    def process_images(
+    def start_detection(
         self,
-        images: list[Image.Image],
+        image_paths: list[str],
+        progress_callback: ProgressCallback | None = None,
+        result_callback: ResultCallback | None = None,
+        settings: PipelineSettings | None = None,
+    ) -> PipelineTask:
+        """Start automatic detection in the background and return immediately."""
+
+        active_settings = settings if settings is not None else PipelineSettings()
+        self._validate_start_input(image_paths, active_settings)
+
+        job_id = str(uuid4())
+        cancel_event = Event()
+        future = self._task_executor.submit(
+            self._run_detection_job,
+            job_id,
+            list(image_paths),
+            active_settings,
+            progress_callback,
+            result_callback,
+            cancel_event,
+        )
+        return PipelineTask(job_id=job_id, cancel_event=cancel_event, future=future)
+
+    def process_image_paths(
+        self,
+        image_paths: list[str],
         settings: PipelineSettings | None = None,
         progress_callback: ProgressCallback | None = None,
     ) -> PipelineRunResult:
-        """Run automatic detection for a batch of images.
-
-        Images above ``settings.max_images`` are reported as skipped instead of
-        causing the job to fail.
-        """
+        """Run detection synchronously for tests and non-UI callers."""
 
         active_settings = settings if settings is not None else PipelineSettings()
-        self._validate_inputs(images, active_settings)
+        self._validate_start_input(image_paths, active_settings)
+        return self._run_detection_job(
+            job_id=str(uuid4()),
+            image_paths=list(image_paths),
+            settings=active_settings,
+            progress_callback=progress_callback,
+            result_callback=None,
+            cancel_event=Event(),
+        )
 
-        job_id = str(uuid4())
-        total_images = len(images)
-        process_count = min(total_images, active_settings.max_images)
+    def _run_detection_job(
+        self,
+        job_id: str,
+        image_paths: list[str],
+        settings: PipelineSettings,
+        progress_callback: ProgressCallback | None,
+        result_callback: ResultCallback | None,
+        cancel_event: Event,
+    ) -> PipelineRunResult:
+        total_images = len(image_paths)
+        process_count = min(total_images, settings.max_images)
         skipped_count = total_images - process_count
         completed_images = 0
+        results: list[ImagePipelineResult] = []
 
-        for index in range(process_count):
+        for image_path in image_paths[:process_count]:
             self._emit(
                 progress_callback,
                 job_id,
-                index,
+                image_path,
                 total_images,
                 completed_images,
                 PipelineStage.QUEUED,
                 PipelineStatus.RUNNING,
             )
 
-        results: list[ImagePipelineResult] = []
-        worker_count = max(1, min(active_settings.worker_count, process_count or 1))
-
+        worker_count = max(1, min(settings.worker_count, process_count or 1))
         with ThreadPoolExecutor(max_workers=worker_count) as executor:
-            future_to_index = {
+            future_to_item = {
                 executor.submit(
-                    self._process_single_image,
+                    self._process_single_path,
                     index,
-                    image,
-                    active_settings,
+                    image_path,
+                    settings,
                     job_id,
                     total_images,
                     lambda: completed_images,
                     progress_callback,
-                ): index
-                for index, image in enumerate(images[:process_count])
+                    cancel_event,
+                ): (index, image_path)
+                for index, image_path in enumerate(image_paths[:process_count])
+                if not cancel_event.is_set()
             }
 
-            for future in as_completed(future_to_index):
-                index = future_to_index[future]
+            for future in as_completed(future_to_item):
+                index, image_path = future_to_item[future]
                 try:
                     result = future.result()
                 except Exception as exc:  # pragma: no cover - defensive boundary
                     result = ImagePipelineResult(
-                        image_index=index,
+                        input_index=index,
+                        image_path=image_path,
                         success=False,
-                        candidates=[],
-                        redaction_targets=[],
+                        detections=[],
                         error=str(exc),
                     )
                     self._emit(
                         progress_callback,
                         job_id,
-                        index,
+                        image_path,
                         total_images,
                         completed_images,
                         PipelineStage.FAILED,
@@ -222,30 +182,31 @@ class PipelineController:
                         str(exc),
                     )
                 completed_images += 1
-                self._emit(
+                self._emit_completion(
                     progress_callback,
                     job_id,
-                    index,
+                    result,
                     total_images,
                     completed_images,
-                    PipelineStage.COMPLETED if result.success else PipelineStage.FAILED,
-                    PipelineStatus.SUCCESS if result.success else PipelineStatus.FAILED,
-                    result.error or "",
+                    cancel_event,
                 )
                 results.append(result)
 
-        for index in range(process_count, total_images):
+        for index, image_path in enumerate(
+            image_paths[process_count:],
+            start=process_count,
+        ):
             skipped_result = ImagePipelineResult(
-                image_index=index,
+                input_index=index,
+                image_path=image_path,
                 success=False,
-                candidates=[],
-                redaction_targets=[],
+                detections=[],
                 error="Image skipped because the job exceeded the image limit.",
             )
             self._emit(
                 progress_callback,
                 job_id,
-                index,
+                image_path,
                 total_images,
                 completed_images,
                 PipelineStage.SKIPPED,
@@ -254,88 +215,111 @@ class PipelineController:
             )
             results.append(skipped_result)
 
-        results.sort(key=lambda result: result.image_index)
-        return PipelineRunResult(
+        run_result = PipelineRunResult(
             job_id=job_id,
             total_images=total_images,
             processed_images=process_count,
             skipped_images=skipped_count,
-            results=results,
+            cancelled=cancel_event.is_set(),
+            results=sorted(results, key=lambda result: result.input_index),
         )
+        if result_callback is not None:
+            result_callback(run_result)
+        return run_result
 
-    def _process_single_image(
+    def _process_single_path(
         self,
-        image_index: int,
-        image: Image.Image,
+        input_index: int,
+        image_path: str,
         settings: PipelineSettings,
         job_id: str,
         total_images: int,
         completed_images_provider: CompletedCountProvider,
         progress_callback: ProgressCallback | None,
+        cancel_event: Event,
     ) -> ImagePipelineResult:
+        if cancel_event.is_set():
+            return _cancelled_result(input_index, image_path)
+
         self._emit(
             progress_callback,
             job_id,
-            image_index,
+            image_path,
             total_images,
             completed_images_provider(),
             PipelineStage.STARTED,
             PipelineStatus.RUNNING,
         )
 
-        ocr_result = self._ocr_runner([image])[0]
+        loaded_image = LoadedImage(path=Path(image_path), image=read_image(image_path))
         self._emit(
             progress_callback,
             job_id,
-            image_index,
+            image_path,
+            total_images,
+            completed_images_provider(),
+            PipelineStage.IMAGE_LOADED,
+            PipelineStatus.RUNNING,
+        )
+
+        if cancel_event.is_set():
+            return _cancelled_result(input_index, image_path)
+
+        ocr_result = self._ocr_runner([loaded_image.image])[0]
+        self._emit(
+            progress_callback,
+            job_id,
+            image_path,
             total_images,
             completed_images_provider(),
             PipelineStage.OCR_COMPLETED,
             PipelineStatus.RUNNING,
         )
 
-        text_candidates = self._detect_text_candidates(ocr_result, settings)
+        if cancel_event.is_set():
+            return _cancelled_result(input_index, image_path)
+
+        text_detections = self._detect_text_candidates(ocr_result, settings)
         self._emit(
             progress_callback,
             job_id,
-            image_index,
+            image_path,
             total_images,
             completed_images_provider(),
             PipelineStage.NLP_COMPLETED,
             PipelineStatus.RUNNING,
         )
 
-        object_candidates = self._detect_object_candidates(image, settings)
+        if cancel_event.is_set():
+            return _cancelled_result(input_index, image_path)
+
+        object_detections = self._detect_object_candidates(loaded_image.image, settings)
         self._emit(
             progress_callback,
             job_id,
-            image_index,
+            image_path,
             total_images,
             completed_images_provider(),
             PipelineStage.OBJECT_DETECTION_COMPLETED,
             PipelineStatus.RUNNING,
         )
 
-        candidates = text_candidates + object_candidates
-        redaction_targets = [
-            candidate.to_redaction_target(settings.redaction_type)
-            for candidate in candidates
-        ]
+        detections = text_detections + object_detections
         self._emit(
             progress_callback,
             job_id,
-            image_index,
+            image_path,
             total_images,
             completed_images_provider(),
-            PipelineStage.REDACTION_TARGETS_READY,
+            PipelineStage.DETECTIONS_READY,
             PipelineStatus.RUNNING,
         )
 
         return ImagePipelineResult(
-            image_index=image_index,
+            input_index=input_index,
+            image_path=image_path,
             success=True,
-            candidates=candidates,
-            redaction_targets=redaction_targets,
+            detections=detections,
         )
 
     def _detect_text_candidates(
@@ -389,24 +373,53 @@ class PipelineController:
             )
         return candidates
 
-    def _validate_inputs(
+    def _validate_start_input(
         self,
-        images: list[Image.Image],
+        image_paths: list[str],
         settings: PipelineSettings,
     ) -> None:
         if settings.max_images < 1:
             raise ValueError("max_images must be at least 1")
         if settings.worker_count < 1:
             raise ValueError("worker_count must be at least 1")
-        for image in images:
-            if not isinstance(image, Image.Image):
-                raise TypeError(f"Expected PIL.Image.Image, got {type(image).__name__}")
+        for image_path in image_paths:
+            if not isinstance(image_path, str):
+                raise TypeError(
+                    f"Expected image path str, got {type(image_path).__name__}"
+                )
+
+    def _emit_completion(
+        self,
+        progress_callback: ProgressCallback | None,
+        job_id: str,
+        result: ImagePipelineResult,
+        total_images: int,
+        completed_images: int,
+        cancel_event: Event,
+    ) -> None:
+        if cancel_event.is_set() and not result.success:
+            stage = PipelineStage.CANCELLED
+            status = PipelineStatus.CANCELLED
+        else:
+            stage = PipelineStage.COMPLETED if result.success else PipelineStage.FAILED
+            status = PipelineStatus.SUCCESS if result.success else PipelineStatus.FAILED
+
+        self._emit(
+            progress_callback,
+            job_id,
+            result.image_path,
+            total_images,
+            completed_images,
+            stage,
+            status,
+            result.error or "",
+        )
 
     def _emit(
         self,
         progress_callback: ProgressCallback | None,
         job_id: str,
-        image_index: int,
+        image_path: str,
         total_images: int,
         completed_images: int,
         stage: PipelineStage,
@@ -418,7 +431,7 @@ class PipelineController:
         progress_callback(
             PipelineProgress(
                 job_id=job_id,
-                image_index=image_index,
+                image_path=image_path,
                 total_images=total_images,
                 completed_images=completed_images,
                 stage=stage,
@@ -426,6 +439,16 @@ class PipelineController:
                 message=message,
             )
         )
+
+
+def _cancelled_result(input_index: int, image_path: str) -> ImagePipelineResult:
+    return ImagePipelineResult(
+        input_index=input_index,
+        image_path=image_path,
+        success=False,
+        detections=[],
+        error="Detection cancelled.",
+    )
 
 
 def _label_enabled(label: str, enabled_labels: frozenset[str]) -> bool:
