@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 from PIL import Image
 
 from src.ai.types import (
@@ -12,12 +14,12 @@ from src.ai.types import (
     OCRWord,
     TextDetection,
 )
-from src.businessLogic.pipeline_controller import (
-    PipelineController,
+from src.businessLogic.pipeline_controller import PipelineController
+from src.businessLogic.pipeline_types import (
     PipelineSettings,
     PipelineStage,
+    PipelineStatus,
 )
-from src.redactEngine import RedactionType
 
 
 class FakeNLPDetector:
@@ -82,43 +84,49 @@ def fake_ocr_runner(images: list[Image.Image]) -> list[OCRResult]:
     ]
 
 
-def test_pipeline_maps_nlp_entities_to_redaction_targets() -> None:
-    image = Image.new("RGB", (100, 100))
+def _write_image(tmp_path, name: str = "input.png") -> str:
+    image_path = tmp_path / name
+    Image.new("RGB", (100, 100), color=(255, 255, 255)).save(image_path)
+    return str(image_path)
+
+
+def test_pipeline_maps_nlp_entities_to_detection_results(tmp_path) -> None:
+    image_path = _write_image(tmp_path)
     controller = PipelineController(
         ocr_runner=fake_ocr_runner,
         nlp_detector=FakeNLPDetector(),
     )
 
-    result = controller.process_images([image])
+    result = controller.process_image_paths([image_path])
 
     image_result = result.results[0]
+    assert image_result.image_path == image_path
     assert image_result.success is True
-    assert len(image_result.candidates) == 1
-    assert image_result.candidates[0].label == "PERSON"
-    assert image_result.candidates[0].bounding_box == BoundingBox(
+    assert len(image_result.detections) == 1
+    assert image_result.detections[0].label == "PERSON"
+    assert image_result.detections[0].bounding_box == BoundingBox(
         x=10,
         y=20,
         width=55,
         height=10,
     )
-    assert image_result.redaction_targets[0].redaction_type == RedactionType.BLACK_BAR
 
 
-def test_pipeline_includes_object_detection_candidates() -> None:
-    image = Image.new("RGB", (100, 100))
+def test_pipeline_includes_object_detection_candidates(tmp_path) -> None:
+    image_path = _write_image(tmp_path)
     controller = PipelineController(
         ocr_runner=fake_ocr_runner,
         nlp_detector=FakeNLPDetector(),
         object_detector=FakeObjectDetector(),
     )
 
-    result = controller.process_images([image])
+    result = controller.process_image_paths([image_path])
 
-    assert [candidate.label for candidate in result.results[0].candidates] == [
+    assert [candidate.label for candidate in result.results[0].detections] == [
         "PERSON",
         "face",
     ]
-    assert result.results[0].redaction_targets[1].location == BoundingBox(
+    assert result.results[0].detections[1].bounding_box == BoundingBox(
         x=30,
         y=40,
         width=50,
@@ -126,8 +134,8 @@ def test_pipeline_includes_object_detection_candidates() -> None:
     )
 
 
-def test_pipeline_filters_by_enabled_labels() -> None:
-    image = Image.new("RGB", (100, 100))
+def test_pipeline_filters_by_enabled_labels(tmp_path) -> None:
+    image_path = _write_image(tmp_path)
     controller = PipelineController(
         ocr_runner=fake_ocr_runner,
         nlp_detector=FakeNLPDetector(),
@@ -138,43 +146,117 @@ def test_pipeline_filters_by_enabled_labels() -> None:
         enabled_object_labels=frozenset({"face"}),
     )
 
-    result = controller.process_images([image], settings=settings)
+    result = controller.process_image_paths([image_path], settings=settings)
 
-    candidates = result.results[0].candidates
-    assert len(candidates) == 1
-    assert candidates[0].label == "face"
+    detections = result.results[0].detections
+    assert len(detections) == 1
+    assert detections[0].label == "face"
 
 
-def test_pipeline_emits_intermediate_progress_updates() -> None:
-    image = Image.new("RGB", (100, 100))
+def test_pipeline_emits_intermediate_progress_updates(tmp_path) -> None:
+    image_path = _write_image(tmp_path)
     progress_events = []
     controller = PipelineController(
         ocr_runner=fake_ocr_runner,
         nlp_detector=FakeNLPDetector(),
     )
 
-    controller.process_images([image], progress_callback=progress_events.append)
+    controller.process_image_paths(
+        [image_path], progress_callback=progress_events.append
+    )
 
     stages = [event.stage for event in progress_events]
     assert stages[:2] == [PipelineStage.QUEUED, PipelineStage.STARTED]
+    assert PipelineStage.IMAGE_LOADED in stages
     assert PipelineStage.OCR_COMPLETED in stages
     assert PipelineStage.NLP_COMPLETED in stages
-    assert PipelineStage.REDACTION_TARGETS_READY in stages
+    assert PipelineStage.DETECTIONS_READY in stages
     assert stages[-1] == PipelineStage.COMPLETED
     assert progress_events[-1].completed_images == 1
 
 
-def test_pipeline_skips_images_above_cap_without_crashing() -> None:
-    images = [Image.new("RGB", (10, 10)) for _ in range(51)]
+def test_pipeline_skips_paths_above_cap_without_crashing(tmp_path) -> None:
+    image_path = _write_image(tmp_path)
+    image_paths = [image_path for _ in range(51)]
     controller = PipelineController(
         ocr_runner=fake_ocr_runner,
         nlp_detector=FakeNLPDetector(),
     )
 
-    result = controller.process_images(images)
+    result = controller.process_image_paths(image_paths)
 
     assert result.processed_images == 50
     assert result.skipped_images == 1
     assert len(result.results) == 51
     assert result.results[-1].success is False
     assert "image limit" in (result.results[-1].error or "")
+
+
+def test_start_detection_returns_quickly_and_uses_result_callback(tmp_path) -> None:
+    image_path = _write_image(tmp_path)
+    callback_results = []
+    controller = PipelineController(
+        ocr_runner=fake_ocr_runner,
+        nlp_detector=FakeNLPDetector(),
+    )
+
+    started_at = time.perf_counter()
+    task = controller.start_detection(
+        [image_path],
+        result_callback=callback_results.append,
+    )
+    elapsed = time.perf_counter() - started_at
+
+    assert elapsed < 0.5
+    for _ in range(50):
+        if callback_results:
+            break
+        time.sleep(0.05)
+
+    assert task.done is True
+    assert callback_results[0].results[0].success is True
+
+
+def test_running_detection_can_be_cancelled(tmp_path) -> None:
+    image_path = _write_image(tmp_path)
+    progress_events = []
+    callback_results = []
+
+    def slow_ocr_runner(images: list[Image.Image]) -> list[OCRResult]:
+        time.sleep(0.2)
+        return fake_ocr_runner(images)
+
+    controller = PipelineController(
+        ocr_runner=slow_ocr_runner,
+        nlp_detector=FakeNLPDetector(),
+    )
+
+    task = controller.start_detection(
+        [image_path],
+        progress_callback=progress_events.append,
+        result_callback=callback_results.append,
+    )
+    task.cancel()
+
+    for _ in range(50):
+        if callback_results:
+            break
+        time.sleep(0.05)
+
+    assert task.cancelled is True
+    assert callback_results[0].cancelled is True
+    assert any(event.status == PipelineStatus.CANCELLED for event in progress_events)
+
+
+def test_pipeline_reports_invalid_image_path_as_failed_result(tmp_path) -> None:
+    image_path = str(tmp_path / "missing.png")
+    controller = PipelineController(
+        ocr_runner=fake_ocr_runner,
+        nlp_detector=FakeNLPDetector(),
+    )
+
+    result = controller.process_image_paths([image_path])
+
+    assert result.results[0].image_path == image_path
+    assert result.results[0].success is False
+    assert result.results[0].detections == []
