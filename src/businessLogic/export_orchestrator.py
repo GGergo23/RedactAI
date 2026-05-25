@@ -9,7 +9,7 @@ from typing import Callable, Protocol
 from PIL import Image
 
 from src.ai.types import BoundingBox
-from src.persistance import save_image
+from src.persistance import save_image, submit_analytics
 from src.redactEngine import RedactionTarget, RedactionType, apply_redactions
 
 
@@ -22,6 +22,7 @@ class KPITrackerProtocol(Protocol):
 
 ImageSaver = Callable[[Image.Image, str | Path, str | None], Path]
 RedactionApplier = Callable[[Image.Image, list[RedactionTarget]], Image.Image]
+AnalyticsSubmitter = Callable[[int, bool], bool]
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +78,7 @@ class ExportRunResult:
     successful_images: int
     failed_images: int
     results: list[ExportImageResult]
+    analytics_submitted: bool = False
 
 
 class ExportOrchestrator:
@@ -87,10 +89,14 @@ class ExportOrchestrator:
         redaction_applier: RedactionApplier = apply_redactions,
         image_saver: ImageSaver = save_image,
         kpi_tracker: KPITrackerProtocol | None = None,
+        analytics_submitter: AnalyticsSubmitter = submit_analytics,
+        analytics_consent: bool = False,
     ) -> None:
         self._redaction_applier = redaction_applier
         self._image_saver = image_saver
         self._kpi_tracker = kpi_tracker
+        self._analytics_submitter = analytics_submitter
+        self._analytics_consent = analytics_consent
 
     def export(self, commands: list[ExportCommand]) -> ExportRunResult:
         """Export a batch of images and return per-image status."""
@@ -100,11 +106,13 @@ class ExportOrchestrator:
             results.append(self._export_one(index, command))
 
         successful_images = sum(1 for result in results if result.success)
+        analytics_submitted = self._submit_export_analytics(results)
         return ExportRunResult(
             total_images=len(commands),
             successful_images=successful_images,
             failed_images=len(commands) - successful_images,
             results=results,
+            analytics_submitted=analytics_submitted,
         )
 
     def _export_one(
@@ -143,6 +151,18 @@ class ExportOrchestrator:
         if self._kpi_tracker is None:
             return
         self._kpi_tracker.record_export(result)
+
+    def _submit_export_analytics(self, results: list[ExportImageResult]) -> bool:
+        successful_redactions = sum(
+            result.redaction_count for result in results if result.success
+        )
+        try:
+            return self._analytics_submitter(
+                successful_redactions,
+                self._analytics_consent,
+            )
+        except Exception:
+            return False
 
     def _validate_command(self, command: ExportCommand) -> None:
         if not isinstance(command.image, Image.Image):

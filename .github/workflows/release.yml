@@ -40,6 +40,28 @@ jobs:
         run: |
           uv run python -c "import urllib.request; import zipfile; from pathlib import Path; import shutil; model_dir = Path('assets/models'); model_dir.mkdir(parents=True, exist_ok=True); wheel_path = model_dir / 'en_core_web_sm-3.8.0-py3-none-any.whl'; urllib.request.urlretrieve('https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl', wheel_path); z = zipfile.ZipFile(wheel_path, 'r'); z.extractall(model_dir); z.close(); versioned = model_dir / 'en_core_web_sm' / 'en_core_web_sm-3.8.0'; shutil.move(str(versioned), str(model_dir / 'en_core_web_sm_tmp')) if versioned.exists() else None; shutil.rmtree(model_dir / 'en_core_web_sm') if (model_dir / 'en_core_web_sm').exists() else None; shutil.move(str(model_dir / 'en_core_web_sm_tmp'), str(model_dir / 'en_core_web_sm')) if (model_dir / 'en_core_web_sm_tmp').exists() else None"
 
+      - name: Download object detection models
+        run: |
+          uv run python - <<'PY'
+          import urllib.request
+          from pathlib import Path
+
+          model_dir = Path('assets/models')
+          model_dir.mkdir(parents=True, exist_ok=True)
+
+          downloads = {
+              'yolov8n-face.pt': 'https://github.com/akanametov/yolo-face/releases/download/1.0.0/yolov8n-face.pt',
+              'license-plate-finetune-v1n.pt': 'https://huggingface.co/morsetechlab/yolov11-license-plate-detection/resolve/main/license-plate-finetune-v1n.pt',
+          }
+
+          for filename, url in downloads.items():
+              target = model_dir / filename
+              if not target.exists():
+                  print(f'Downloading {filename}...')
+                  urllib.request.urlretrieve(url, target)
+              print(f'{filename}: {target}')
+          PY
+
       - name: Build with PyInstaller
         run: uv run pyinstaller --onedir --name redactai --windowed --add-data "src/ui/styles:src/ui/styles" --add-data "assets/models:assets/models" src/main.py
 

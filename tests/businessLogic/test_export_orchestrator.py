@@ -117,6 +117,42 @@ def test_export_triggers_kpi_for_successful_exports_only(tmp_path) -> None:
     assert kpi_tracker.events[0].output_path == tmp_path / "valid.png"
 
 
+def test_export_submits_successful_redaction_count_to_analytics(tmp_path) -> None:
+    submitted = []
+
+    def fake_analytics_submitter(redaction_count, consent_granted):
+        submitted.append((redaction_count, consent_granted))
+        return True
+
+    image = Image.new("RGB", (20, 20), color=(255, 255, 255))
+    orchestrator = ExportOrchestrator(
+        analytics_submitter=fake_analytics_submitter,
+        analytics_consent=True,
+    )
+    commands = [
+        ExportCommand(
+            image=image,
+            output_path=tmp_path / "valid.png",
+            redactions=[
+                ApprovedRedaction(x=1, y=1, width=3, height=3),
+                ApprovedRedaction(x=5, y=5, width=3, height=3),
+            ],
+        ),
+        ExportCommand(
+            image=image,
+            output_path=tmp_path / "invalid.png",
+            redactions=[
+                ApprovedRedaction(x=1, y=1, width=5, height=5, mode="not-a-mode")
+            ],
+        ),
+    ]
+
+    result = orchestrator.export(commands)
+
+    assert submitted == [(2, True)]
+    assert result.analytics_submitted is True
+
+
 def test_export_passes_approved_coordinates_to_redaction_engine(tmp_path) -> None:
     captured_targets = []
 

@@ -2,7 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from src.ai.detector import ModelLoadError, NLPDetector
+from src.ai.detector import NLPDetector
+from src.ai.types import ModelLoadError
 
 
 def test_empty_and_whitespace_returns_empty():
