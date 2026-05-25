@@ -84,6 +84,28 @@ jobs:
           print('Model ready at assets/models/en_core_web_sm')
           PY
 
+      - name: Download object detection models
+        run: |
+          uv run python - <<'PY'
+          import urllib.request
+          from pathlib import Path
+
+          model_dir = Path('assets/models')
+          model_dir.mkdir(parents=True, exist_ok=True)
+
+          downloads = {
+              'yolov8n-face.pt': 'https://github.com/akanametov/yolo-face/releases/download/1.0.0/yolov8n-face.pt',
+              'license-plate-finetune-v1n.pt': 'https://huggingface.co/morsetechlab/yolov11-license-plate-detection/resolve/main/license-plate-finetune-v1n.pt',
+          }
+
+          for filename, url in downloads.items():
+              target = model_dir / filename
+              if not target.exists():
+                  print(f'Downloading {filename}...')
+                  urllib.request.urlretrieve(url, target)
+              print(f'{filename}: {target}')
+          PY
+
       - name: Run tests with pytest
         run: xvfb-run uv run pytest tests --cov=src --cov-report=term --cov-report=xml
         
