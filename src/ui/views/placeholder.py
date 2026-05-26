@@ -45,6 +45,13 @@ class PlaceholderView(QWidget):
         description.setProperty("role", "subtitle")
         description.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        # Summary shown when Apply Redactions forwards output here
+        self._summary_label = QLabel("")
+        self._summary_label.setProperty("role", "body")
+        self._summary_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._summary_label.setWordWrap(True)
+        self._summary_label.setVisible(False)
+
         # Back button
         back_button = QPushButton("Back to Home")
         back_button.setProperty("role", "primary")
@@ -55,10 +62,33 @@ class PlaceholderView(QWidget):
         layout.addStretch()
         layout.addWidget(title)
         layout.addWidget(description)
+        layout.addWidget(self._summary_label)
         layout.addStretch()
         layout.addWidget(back_button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addStretch()
 
     def on_page_become_current(self) -> None:
         """Called when this page becomes the current page in the stack."""
-        pass
+        from src.ui.views.review.types import ReviewPageOutput
+
+        output = self.launch_extra.get("output")
+        if not isinstance(output, ReviewPageOutput):
+            self._summary_label.setVisible(False)
+            return
+
+        total = sum(len(img.approved_targets) for img in output.loaded_images)
+        lines = [
+            f"  Image {i + 1} ({img.path.name}): "
+            f"{len(img.approved_targets)} target(s)"
+            for i, img in enumerate(output.loaded_images)
+        ]
+        print(
+            f"[PlaceholderView] received {total} redaction target(s) "
+            f"across {len(output.loaded_images)} image(s):"
+        )
+        for line in lines:
+            print(line)
+
+        summary_text = f"{total} redaction target(s) ready.\n" + "\n".join(lines)
+        self._summary_label.setText(summary_text)
+        self._summary_label.setVisible(True)
