@@ -1,4 +1,4 @@
-"""Export view for showing and executingexport functionality."""
+"""Export view for showing and executing export functionality."""
 
 from typing import Callable
 
@@ -46,7 +46,7 @@ class ExportPageView(QWidget):
 
         # Description
         self.description = QLabel(
-            "All redaction targets have been approved."
+            "All redaction targets have been approved. "
             "Click the button below to start exporting."
         )
         self.description.setProperty("role", "subtitle")
@@ -122,7 +122,7 @@ class ExportPageView(QWidget):
         self.main_button.setEnabled(True)
         self.main_button.setText("Start Export")
         self.description.setText(
-            "All redaction targets have been approved."
+            "All redaction targets have been approved. "
             "Click the button below to start exporting."
         )
         self.is_done = False
