@@ -290,7 +290,7 @@ class ReviewPageView(QWidget):
         )
         from src.ui.main_window import Page
 
-        self.transition_page_fn(Page.PLACEHOLDER, output=output)
+        self.transition_page_fn(Page.EXPORT, output=output)
 
     def _go_home(self) -> None:
         """Navigate back to the home page."""

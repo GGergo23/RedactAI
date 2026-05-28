@@ -8,6 +8,7 @@ from src.persistance.config_manager import ConfigManager
 from src.persistance.resource_loader import ResourceLoader
 from src.ui.dialogs.alert_dialog import show_confirmation_dialog
 from src.ui.views.detection_progress import DetectionProgressView
+from src.ui.views.export_page import ExportPageView
 from src.ui.views.homepage import HomePage
 from src.ui.views.placeholder import PlaceholderView
 from src.ui.views.review.review_page import ReviewPageView
@@ -18,6 +19,7 @@ class Page(Enum):
     DETECTION_PROGRESS = "detection_progress"
     PLACEHOLDER = "placeholder"
     REVIEW = "review"
+    EXPORT = "export"
 
 
 class MainWindow(QMainWindow):
@@ -42,6 +44,7 @@ class MainWindow(QMainWindow):
         self.detection_progress = DetectionProgressView(self.go_to)
         self.placeholder = PlaceholderView(lambda: self.go_to(Page.HOME))
         self.review_page = ReviewPageView(self.go_to)
+        self.export_page = ExportPageView(self.go_to)
 
         # Register views in a mapping for unified navigation
         self.views = {
@@ -49,6 +52,7 @@ class MainWindow(QMainWindow):
             Page.DETECTION_PROGRESS: self.detection_progress,
             Page.PLACEHOLDER: self.placeholder,
             Page.REVIEW: self.review_page,
+            Page.EXPORT: self.export_page,
         }
 
         # Add to stacked widget
@@ -56,6 +60,7 @@ class MainWindow(QMainWindow):
         self.stacked_widget.addWidget(self.detection_progress)
         self.stacked_widget.addWidget(self.placeholder)
         self.stacked_widget.addWidget(self.review_page)
+        self.stacked_widget.addWidget(self.export_page)
 
         # Show homepage first
         self.stacked_widget.setCurrentWidget(self.homepage)
