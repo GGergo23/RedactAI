@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from threading import Event
 
 from PIL import Image
 
@@ -246,6 +247,31 @@ def test_running_detection_can_be_cancelled(tmp_path) -> None:
     assert task.cancelled is True
     assert callback_results[0].cancelled is True
     assert any(event.status == PipelineStatus.CANCELLED for event in progress_events)
+
+
+def test_pre_cancelled_job_records_cancelled_result_for_in_cap_path(tmp_path) -> None:
+    image_path = _write_image(tmp_path)
+    cancel_event = Event()
+    cancel_event.set()
+    controller = PipelineController(
+        ocr_runner=fake_ocr_runner,
+        nlp_detector=FakeNLPDetector(),
+    )
+
+    result = controller._run_detection_job(
+        job_id="job-id",
+        image_paths=[image_path],
+        settings=PipelineSettings(),
+        progress_callback=None,
+        result_callback=None,
+        cancel_event=cancel_event,
+    )
+
+    assert result.cancelled is True
+    assert result.processed_images == 1
+    assert len(result.results) == 1
+    assert result.results[0].success is False
+    assert result.results[0].error == "Detection cancelled."
 
 
 def test_pipeline_reports_invalid_image_path_as_failed_result(tmp_path) -> None:
