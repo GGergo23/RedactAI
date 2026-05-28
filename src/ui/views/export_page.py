@@ -22,7 +22,7 @@ class ExportPageView(QWidget):
         self.transition_page_fn = transition_page_fn
         self.launch_extra: dict[str, object] = {}
         self._setup_ui()
-        self.has_exported = False
+        self.is_done = False
         self.export_timer: QTimer | None = None  # Timer to simulate export process
 
     def setLaunchExtra(self, **kwargs: object) -> None:
@@ -67,7 +67,7 @@ class ExportPageView(QWidget):
         layout.addStretch()
 
     def main_button_clicked(self) -> None:
-        if self.has_exported:
+        if self.is_done:
             # Export already finished, return to home page
             # import here to avoid circular import
             from src.ui.main_window import Page
@@ -98,7 +98,7 @@ class ExportPageView(QWidget):
             )
             self.main_button.setText("Go back to Home")
             self.main_button.setEnabled(True)
-            self.has_exported = True
+            self.is_done = True
             return
         # TODO: start export logic here
         self.export_timer = QTimer()
@@ -113,7 +113,7 @@ class ExportPageView(QWidget):
         )
         self.main_button.setText("Go back to Home")
         self.main_button.setEnabled(True)
-        self.has_exported = True
+        self.is_done = True
         self.export_timer = None
 
     def on_page_become_current(self) -> None:
@@ -125,4 +125,4 @@ class ExportPageView(QWidget):
             "All redaction targets have been approved."
             "Click the button below to start exporting."
         )
-        self.has_exported = False
+        self.is_done = False
