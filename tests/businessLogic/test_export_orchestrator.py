@@ -10,20 +10,9 @@ from PIL import Image
 from src.businessLogic.export_orchestrator import (
     ApprovedRedaction,
     ExportCommand,
-    ExportImageResult,
     ExportOrchestrator,
 )
 from src.redactEngine import RedactionType
-
-
-class FakeKPITracker:
-    """Collect successful export events."""
-
-    def __init__(self) -> None:
-        self.events: list[ExportImageResult] = []
-
-    def record_export(self, result: ExportImageResult) -> None:
-        self.events.append(result)
 
 
 def test_export_applies_redactions_and_saves_image(tmp_path) -> None:
@@ -84,37 +73,6 @@ def test_export_reports_per_image_failure_without_stopping_batch(tmp_path) -> No
     assert result.results[0].success is True
     assert result.results[1].success is False
     assert "unsupported" in (result.results[1].error or "")
-
-
-def test_export_triggers_kpi_for_successful_exports_only(tmp_path) -> None:
-    image = Image.new("RGB", (20, 20), color=(255, 255, 255))
-    kpi_tracker = FakeKPITracker()
-    orchestrator = ExportOrchestrator(kpi_tracker=kpi_tracker)
-    commands = [
-        ExportCommand(
-            image=image,
-            output_path=tmp_path / "valid.png",
-            redactions=[],
-        ),
-        ExportCommand(
-            image=image,
-            output_path=tmp_path / "invalid.png",
-            redactions=[
-                ApprovedRedaction(
-                    x=1,
-                    y=1,
-                    width=5,
-                    height=5,
-                    mode="not-a-mode",
-                )
-            ],
-        ),
-    ]
-
-    orchestrator.export(commands)
-
-    assert len(kpi_tracker.events) == 1
-    assert kpi_tracker.events[0].output_path == tmp_path / "valid.png"
 
 
 def test_export_submits_successful_redaction_count_to_analytics(tmp_path) -> None:

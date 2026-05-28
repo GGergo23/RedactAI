@@ -4,21 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Protocol
+from typing import Callable
 
 from PIL import Image
 
 from src.ai.types import BoundingBox
 from src.persistance import save_image, submit_analytics
 from src.redactEngine import RedactionTarget, RedactionType, apply_redactions
-
-
-class KPITrackerProtocol(Protocol):
-    """Minimal KPI module contract used after successful exports."""
-
-    def record_export(self, result: "ExportImageResult") -> None:
-        """Record a successful image export."""
-
 
 ImageSaver = Callable[[Image.Image, str | Path, str | None], Path]
 RedactionApplier = Callable[[Image.Image, list[RedactionTarget]], Image.Image]
@@ -88,13 +80,11 @@ class ExportOrchestrator:
         self,
         redaction_applier: RedactionApplier = apply_redactions,
         image_saver: ImageSaver = save_image,
-        kpi_tracker: KPITrackerProtocol | None = None,
         analytics_submitter: AnalyticsSubmitter = submit_analytics,
         analytics_consent: bool = False,
     ) -> None:
         self._redaction_applier = redaction_applier
         self._image_saver = image_saver
-        self._kpi_tracker = kpi_tracker
         self._analytics_submitter = analytics_submitter
         self._analytics_consent = analytics_consent
 
@@ -136,7 +126,6 @@ class ExportOrchestrator:
                 output_path=output_path,
                 redaction_count=len(targets),
             )
-            self._record_kpi(result)
             return result
         except Exception as exc:
             return ExportImageResult(
@@ -146,11 +135,6 @@ class ExportOrchestrator:
                 redaction_count=len(command.redactions),
                 error=str(exc),
             )
-
-    def _record_kpi(self, result: ExportImageResult) -> None:
-        if self._kpi_tracker is None:
-            return
-        self._kpi_tracker.record_export(result)
 
     def _submit_export_analytics(self, results: list[ExportImageResult]) -> bool:
         successful_redactions = sum(
