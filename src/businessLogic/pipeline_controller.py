@@ -156,7 +156,6 @@ class PipelineController:
                     cancel_event,
                 ): (index, image_path)
                 for index, image_path in enumerate(image_paths[:process_count])
-                if not cancel_event.is_set()
             }
 
             for future in as_completed(future_to_item):
