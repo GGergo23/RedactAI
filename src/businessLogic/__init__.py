@@ -1,5 +1,13 @@
 """Backend orchestration layer"""
 
+from src.businessLogic.export_orchestrator import (
+    ApprovedRedaction,
+    ExportCommand,
+    ExportImageResult,
+    ExportOrchestrator,
+    ExportRunResult,
+    ExportTask,
+)
 from src.businessLogic.pipeline_controller import PipelineController, PipelineTask
 from src.businessLogic.pipeline_types import (
     DetectionCandidate,
@@ -12,7 +20,13 @@ from src.businessLogic.pipeline_types import (
 )
 
 __all__ = [
+    "ApprovedRedaction",
     "DetectionCandidate",
+    "ExportCommand",
+    "ExportImageResult",
+    "ExportOrchestrator",
+    "ExportRunResult",
+    "ExportTask",
     "ImagePipelineResult",
     "PipelineController",
     "PipelineProgress",
