@@ -6,6 +6,7 @@ from src.businessLogic.export_orchestrator import (
     ExportImageResult,
     ExportOrchestrator,
     ExportRunResult,
+    ExportTask,
 )
 from src.businessLogic.pipeline_controller import PipelineController, PipelineTask
 from src.businessLogic.pipeline_types import (
@@ -25,6 +26,7 @@ __all__ = [
     "ExportImageResult",
     "ExportOrchestrator",
     "ExportRunResult",
+    "ExportTask",
     "ImagePipelineResult",
     "PipelineController",
     "PipelineProgress",

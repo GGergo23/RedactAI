@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+import time
 from pathlib import Path
 
 import numpy as np
@@ -109,6 +111,61 @@ def test_export_submits_successful_redaction_count_to_analytics(tmp_path) -> Non
 
     assert submitted == [(2, True)]
     assert result.analytics_submitted is True
+
+
+def test_start_export_returns_quickly_and_uses_result_callback(tmp_path) -> None:
+    callback_results = []
+
+    def slow_saver(image, output_path, image_format):
+        time.sleep(0.2)
+        return Path(output_path)
+
+    image = Image.new("RGB", (20, 20), color=(255, 255, 255))
+    orchestrator = ExportOrchestrator(image_saver=slow_saver)
+    command = ExportCommand(
+        image=image,
+        output_path=tmp_path / "out.png",
+        redactions=[],
+    )
+
+    started_at = time.perf_counter()
+    task = orchestrator.start_export([command], result_callback=callback_results.append)
+    elapsed = time.perf_counter() - started_at
+
+    assert elapsed < 0.5
+    for _ in range(50):
+        if callback_results:
+            break
+        time.sleep(0.05)
+
+    assert task.done is True
+    assert callback_results[0].successful_images == 1
+
+
+def test_start_export_runs_on_background_thread(tmp_path) -> None:
+    worker_thread_ids = []
+    caller_thread_id = threading.get_ident()
+
+    def recording_saver(image, output_path, image_format):
+        worker_thread_ids.append(threading.get_ident())
+        return Path(output_path)
+
+    image = Image.new("RGB", (20, 20), color=(255, 255, 255))
+    orchestrator = ExportOrchestrator(image_saver=recording_saver)
+    command = ExportCommand(
+        image=image,
+        output_path=tmp_path / "out.png",
+        redactions=[],
+    )
+
+    task = orchestrator.start_export([command])
+    for _ in range(50):
+        if task.done:
+            break
+        time.sleep(0.05)
+
+    assert worker_thread_ids
+    assert worker_thread_ids[0] != caller_thread_id
 
 
 def test_export_passes_approved_coordinates_to_redaction_engine(tmp_path) -> None:

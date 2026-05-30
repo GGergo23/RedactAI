@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -15,6 +16,7 @@ from src.redactEngine import RedactionTarget, RedactionType, apply_redactions
 ImageSaver = Callable[[Image.Image, str | Path, str | None], Path]
 RedactionApplier = Callable[[Image.Image, list[RedactionTarget]], Image.Image]
 AnalyticsSubmitter = Callable[[int, bool], bool]
+ExportResultCallback = Callable[["ExportRunResult"], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +75,19 @@ class ExportRunResult:
     analytics_submitted: bool = False
 
 
+class ExportTask:
+    """Handle for a running non-blocking export job."""
+
+    def __init__(self, future: Future) -> None:
+        self._future = future
+
+    @property
+    def done(self) -> bool:
+        """Return whether the background export job has finished."""
+
+        return self._future.done()
+
+
 class ExportOrchestrator:
     """Apply approved redactions, persist outputs, and trigger KPI tracking."""
 
@@ -87,6 +102,21 @@ class ExportOrchestrator:
         self._image_saver = image_saver
         self._analytics_submitter = analytics_submitter
         self._analytics_consent = analytics_consent
+        self._task_executor = ThreadPoolExecutor(max_workers=1)
+
+    def start_export(
+        self,
+        commands: list[ExportCommand],
+        result_callback: ExportResultCallback | None = None,
+    ) -> ExportTask:
+        """Start export work in one background thread and return immediately."""
+
+        future = self._task_executor.submit(
+            self._export_and_callback,
+            list(commands),
+            result_callback,
+        )
+        return ExportTask(future)
 
     def export(self, commands: list[ExportCommand]) -> ExportRunResult:
         """Export a batch of images and return per-image status."""
@@ -104,6 +134,16 @@ class ExportOrchestrator:
             results=results,
             analytics_submitted=analytics_submitted,
         )
+
+    def _export_and_callback(
+        self,
+        commands: list[ExportCommand],
+        result_callback: ExportResultCallback | None,
+    ) -> ExportRunResult:
+        result = self.export(commands)
+        if result_callback is not None:
+            result_callback(result)
+        return result
 
     def _export_one(
         self,
