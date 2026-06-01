@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
 
-from PyQt6.QtCore import Qt, QTimer
-
-if TYPE_CHECKING:
-    from src.ui.views.review.types import ReviewPageInput
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QLabel,
     QProgressBar,
@@ -17,25 +14,61 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-_SAMPLE_DIR = Path(__file__).parent.parent.parent.parent / "tests" / "assets" / "images"
+from src.ai.types import DetectedObject
+from src.businessLogic.pipeline_controller import PipelineController, PipelineTask
+from src.businessLogic.pipeline_types import (
+    PipelineProgress,
+    PipelineRunResult,
+    PipelineStage,
+)
+from src.persistance.image_reader import read_images
+from src.ui.views.review.types import LoadedImageDetections, ReviewPageInput
+
+_STAGE_TEXT: dict[PipelineStage, str] = {
+    PipelineStage.QUEUED: "Queued",
+    PipelineStage.STARTED: "Starting",
+    PipelineStage.IMAGE_LOADED: "Image loaded",
+    PipelineStage.OCR_COMPLETED: "OCR complete",
+    PipelineStage.NLP_COMPLETED: "Text analysis complete",
+    PipelineStage.OBJECT_DETECTION_COMPLETED: "Object detection complete",
+    PipelineStage.DETECTIONS_READY: "Finalizing",
+    PipelineStage.COMPLETED: "Image complete",
+    PipelineStage.CANCELLED: "Cancelled",
+    PipelineStage.SKIPPED: "Skipped",
+    PipelineStage.FAILED: "Failed",
+}
 
 
 class DetectionProgressView(QWidget):
     """View displaying the progress of the detection pipeline."""
 
-    def __init__(self, transition_page_fn: Callable) -> None:
+    # Pipeline callbacks fire from a worker thread; these signals marshal
+    # the payload back onto the GUI thread before touching widgets.
+    _progress_signal = pyqtSignal(object)
+    _result_signal = pyqtSignal(object)
+
+    def __init__(
+        self,
+        transition_page_fn: Callable,
+        pipeline: PipelineController,
+    ) -> None:
         """
         Initialize the detection progress view.
 
         Args:
             transition_page_fn: Function for transitioning to other pages.
+            pipeline: Shared pipeline controller used to run detection jobs.
         """
         super().__init__()
         self.transition_page_fn = transition_page_fn
+        self._pipeline = pipeline
         self.files: list[str] = []
         self.current_progress = 0
-        self.progress_timer: QTimer | None = None  # debug progress simulation
+        self._task: PipelineTask | None = None
         self._setup_ui()
+
+        self._progress_signal.connect(self._on_progress)
+        self._result_signal.connect(self._on_complete)
 
     def _setup_ui(self) -> None:
         """Set up the UI components."""
@@ -97,123 +130,104 @@ class DetectionProgressView(QWidget):
         self.start_detection()
 
     def start_detection(self) -> None:
-        """Start the mock detection pipeline simulation."""
-        if self._is_detection_task_running():
+        """Submit the current files to the pipeline and update UI state."""
+        if self._task is not None and not self._task.done:
             return  # Prevent starting multiple tasks
 
-        # Reset progress state
-        self.status_label.setText("Starting detection pipeline...")
         self.on_progress_update(0)
+        self.status_label.setText("Starting detection pipeline...")
 
-        # start detection task
-        # mock for now
-        self.progress_timer = QTimer()
-        self.progress_timer.timeout.connect(
-            lambda: (
-                self.on_detection_complete(None)
-                if self.current_progress >= 100
-                else self.on_progress_update(min(100, self.current_progress + 12))
-            )
+        self._task = self._pipeline.start_detection(
+            image_paths=list(self.files),
+            progress_callback=self._progress_signal.emit,
+            result_callback=self._result_signal.emit,
         )
-        self.progress_timer.start(300)
         self.cancel_button.setEnabled(True)
 
-        # Update status text
-        self.status_label.setText("Running detection pipeline...")
-
     def on_progress_update(self, progress: int) -> None:
-        """Update the progress bar and status text."""
+        """Update the progress bar and percentage label."""
         self.current_progress = progress
         self.progress_bar.setValue(self.current_progress)
         self.progress_percentage_label.setText(f"{self.current_progress}%")
 
-    # TODO: Replace with real detection results object when T2.1 lands
-    def on_detection_complete(self, detection_results: object) -> None:
-        """Handle detection completion and transition to the review page."""
+    def _on_progress(self, event: PipelineProgress) -> None:
+        """Handle a progress event marshalled from the pipeline worker."""
+        if self._task is None:
+            return  # cancelled and navigated away — drop late callbacks
+        if event.total_images > 0:
+            pct = int(event.completed_images / event.total_images * 100)
+        else:
+            pct = 0
+        self.on_progress_update(pct)
+        label = _STAGE_TEXT.get(event.stage, "Processing")
+        current_index = min(event.completed_images + 1, event.total_images)
+        self.status_label.setText(
+            f"{label} — image {current_index} of {event.total_images}"
+        )
+
+    def _on_complete(self, result: PipelineRunResult) -> None:
+        """Handle pipeline completion and transition to the review page."""
+        if self._task is None or result.cancelled:
+            return  # cancelled job — UI already returned home
+
         self.status_label.setText("Detection complete!")
         self.cancel_button.setEnabled(False)
+        self.on_progress_update(100)
 
-        self.progress_timer.stop()
+        review_input = self._build_review_input(result)
+        self._task = None
 
         # Import here to avoid circular dependency
         from src.ui.main_window import Page
 
-        mock_input = self._build_mock_review_input()
-        self.transition_page_fn(Page.REVIEW, input=mock_input)
+        self.transition_page_fn(Page.REVIEW, input=review_input)
 
-    def _build_mock_review_input(self) -> "ReviewPageInput":
-        """Build a mock ReviewPageInput from sample images with hand-coded boxes.
-
-        Loads face.jpg and plate.jpg from the test-assets directory and
-        attaches approximate bounding boxes that match the known sample-image
-        ground truth (see tests/ai/test_object_detector.py).  This mock is
-        intentionally hardcoded and will be replaced by the real pipeline
-        output in T2.1.
-        """
-        from src.ai.types import BoundingBox, DetectedObject
-        from src.persistance.image_reader import read_images
-        from src.ui.views.review.types import (
-            LoadedImageDetections,
-            ReviewPageInput,
-        )
-
-        sample_paths = [
-            _SAMPLE_DIR / "face.jpg",
-            _SAMPLE_DIR / "plate.jpg",
+    def _build_review_input(self, result: PipelineRunResult) -> ReviewPageInput:
+        """Convert a pipeline run result into the review page's input format."""
+        successful = [r for r in result.results if r.success]
+        pipeline_failed_paths = [
+            Path(r.image_path) for r in result.results if not r.success
         ]
-        batch = read_images(sample_paths)
 
-        # Hand-coded detections matching known test-image ground truth
-        _mock_boxes: dict[str, list[DetectedObject]] = {
-            "face.jpg": [
+        batch = read_images([Path(r.image_path) for r in successful])
+        detections_by_path: dict[Path, list[DetectedObject]] = {
+            Path(r.image_path): [
                 DetectedObject(
-                    label="face",
-                    bounding_box=BoundingBox(x=195, y=40, width=150, height=150),
-                    confidence=0.92,
+                    label=c.label,
+                    bounding_box=c.bounding_box,
+                    confidence=c.confidence,
                 )
-            ],
-            "plate.jpg": [
-                DetectedObject(
-                    label="license_plate",
-                    bounding_box=BoundingBox(x=590, y=520, width=200, height=200),
-                    confidence=0.88,
-                )
-            ],
+                for c in r.detections
+            ]
+            for r in successful
         }
 
-        loaded: list[LoadedImageDetections] = []
-        for path, image in batch.loaded_images:
-            detections = _mock_boxes.get(path.name, [])
-            loaded.append(
-                LoadedImageDetections(
-                    path=path,
-                    image=image,
-                    detections=detections,
-                )
+        loaded_images = [
+            LoadedImageDetections(
+                path=path,
+                image=image,
+                detections=detections_by_path.get(path, []),
             )
-
+            for path, image in batch.loaded_images
+        ]
         return ReviewPageInput(
-            failed_paths=batch.failed_paths,
-            loaded_images=loaded,
+            failed_paths=pipeline_failed_paths + batch.failed_paths,
+            loaded_images=loaded_images,
         )
 
     def cancel(self) -> None:
         """Cancel the running task and return to the homepage."""
-        if not self._is_detection_task_running():
+        if self._task is None or self._task.done:
             return
 
-        # update UI state
         self.cancel_button.setEnabled(False)
         self.status_label.setText("Cancelling...")
 
-        # Cancel the task
-        self.progress_timer.stop()
+        self._task.cancel()
+        # Drop our handle so late progress/result callbacks become no-ops.
+        self._task = None
 
         # Import here to avoid circular dependency
         from src.ui.main_window import Page
 
         self.transition_page_fn(Page.HOME)
-
-    def _is_detection_task_running(self) -> bool:
-        """Check if the detection task is currently running."""
-        return self.progress_timer is not None and self.progress_timer.isActive()

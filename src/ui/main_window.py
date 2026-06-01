@@ -4,6 +4,8 @@ from enum import Enum
 
 from PyQt6.QtWidgets import QDialog, QMainWindow, QStackedWidget
 
+from src.ai.object_detector import ObjectDetector
+from src.businessLogic.pipeline_controller import PipelineController
 from src.persistance.config_manager import ConfigManager
 from src.persistance.resource_loader import ResourceLoader
 from src.ui.dialogs.alert_dialog import show_confirmation_dialog
@@ -39,9 +41,16 @@ class MainWindow(QMainWindow):
         self.stacked_widget.currentChanged.connect(self._on_view_changed)
         self.setCentralWidget(self.stacked_widget)
 
+        # Shared orchestration tier (built once: NLP model load is heavy)
+        self.pipeline_controller = PipelineController(
+            object_detector=ObjectDetector(),
+        )
+
         # Create views
         self.homepage = HomePage(self.go_to)
-        self.detection_progress = DetectionProgressView(self.go_to)
+        self.detection_progress = DetectionProgressView(
+            self.go_to, self.pipeline_controller
+        )
         self.placeholder = PlaceholderView(lambda: self.go_to(Page.HOME))
         self.review_page = ReviewPageView(self.go_to)
         self.export_page = ExportPageView(self.go_to)
