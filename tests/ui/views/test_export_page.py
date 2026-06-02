@@ -23,7 +23,10 @@ from src.ui.views.review.types import ApprovedImageRedactions, ReviewPageOutput
 
 @pytest.fixture(scope="module")
 def qt_app():
-    app = QApplication.instance() or QApplication([])
+    # "-platform offscreen" lets the fixture work in headless CI (no X server)
+    # without requiring xvfb. setdefault avoids overriding if another fixture
+    # already constructed a QApplication.
+    app = QApplication.instance() or QApplication(["", "-platform", "offscreen"])
     yield app
 
 
