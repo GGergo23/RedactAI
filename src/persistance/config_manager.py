@@ -50,6 +50,10 @@ class ConfigManager:
 
     @staticmethod
     def get_default_save_directory() -> Path:
-        """Return default directory for
-        saving outputs (user Documents folder)."""
-        return Path.home() / "Documents" / "RedactAI"
+        """Return default directory for saving outputs.
+
+        Uses ``~/Pictures`` rather than ``~/Documents`` so redacted images
+        are not silently swept into iCloud Drive when a user has macOS's
+        "Desktop & Documents Folders" sync enabled.
+        """
+        return Path.home() / "Pictures" / "RedactAI"

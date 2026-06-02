@@ -13,6 +13,7 @@ from src.businessLogic.export_orchestrator import (
     ApprovedRedaction,
     ExportCommand,
     ExportOrchestrator,
+    ExportProgress,
 )
 from src.redactEngine import RedactionType
 
@@ -207,3 +208,82 @@ def test_export_passes_approved_coordinates_to_redaction_engine(tmp_path) -> Non
     assert captured_targets[0].location.width == 6
     assert captured_targets[0].location.height == 7
     assert captured_targets[0].redaction_type == RedactionType.PIXELATE
+
+
+def test_start_export_invokes_progress_callback_per_image(tmp_path) -> None:
+    events: list[ExportProgress] = []
+
+    image = Image.new("RGB", (20, 20), color=(255, 255, 255))
+    orchestrator = ExportOrchestrator()
+    commands = [
+        ExportCommand(
+            image=image,
+            output_path=tmp_path / f"out_{index}.png",
+            redactions=[],
+        )
+        for index in range(3)
+    ]
+
+    task = orchestrator.start_export(commands, progress_callback=events.append)
+    for _ in range(50):
+        if task.done:
+            break
+        time.sleep(0.05)
+
+    assert task.done is True
+    assert [event.completed_images for event in events] == [1, 2, 3]
+    assert all(event.total_images == 3 for event in events)
+    assert all(event.success for event in events)
+
+
+def test_cancel_stops_subsequent_exports_and_marks_remaining_failed(tmp_path) -> None:
+    proceed_after_first = threading.Event()
+    seen_indices: list[int] = []
+
+    def blocking_saver(image, output_path, image_format):
+        index = len(seen_indices)
+        seen_indices.append(index)
+        if index == 0:
+            proceed_after_first.wait(timeout=2.0)
+        return Path(output_path)
+
+    image = Image.new("RGB", (20, 20), color=(255, 255, 255))
+    orchestrator = ExportOrchestrator(image_saver=blocking_saver)
+    commands = [
+        ExportCommand(
+            image=image,
+            output_path=tmp_path / f"out_{index}.png",
+            redactions=[],
+        )
+        for index in range(3)
+    ]
+
+    callback_results = []
+    task = orchestrator.start_export(
+        commands,
+        result_callback=callback_results.append,
+    )
+
+    # Wait until the first image is in-flight, then cancel.
+    for _ in range(50):
+        if seen_indices:
+            break
+        time.sleep(0.02)
+    task.cancel()
+    proceed_after_first.set()
+
+    for _ in range(50):
+        if callback_results:
+            break
+        time.sleep(0.05)
+
+    assert task.done is True
+    result = callback_results[0]
+    assert result.cancelled is True
+    assert result.results[0].success is True
+    assert result.results[1].success is False
+    assert result.results[1].error == "cancelled"
+    assert result.results[2].success is False
+    assert result.results[2].error == "cancelled"
+    assert result.successful_images == 1
+    assert result.failed_images == 2

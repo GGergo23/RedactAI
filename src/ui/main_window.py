@@ -5,6 +5,7 @@ from enum import Enum
 from PyQt6.QtWidgets import QDialog, QMainWindow, QStackedWidget
 
 from src.ai.object_detector import ObjectDetector
+from src.businessLogic.export_orchestrator import ExportOrchestrator
 from src.businessLogic.pipeline_controller import PipelineController
 from src.persistance.config_manager import ConfigManager
 from src.persistance.resource_loader import ResourceLoader
@@ -45,6 +46,9 @@ class MainWindow(QMainWindow):
         self.pipeline_controller = PipelineController(
             object_detector=ObjectDetector(),
         )
+        self.export_orchestrator = ExportOrchestrator(
+            analytics_consent=self._read_analytics_consent(),
+        )
 
         # Create views
         self.homepage = HomePage(self.go_to)
@@ -53,7 +57,7 @@ class MainWindow(QMainWindow):
         )
         self.placeholder = PlaceholderView(lambda: self.go_to(Page.HOME))
         self.review_page = ReviewPageView(self.go_to)
-        self.export_page = ExportPageView(self.go_to)
+        self.export_page = ExportPageView(self.go_to, self.export_orchestrator)
 
         # Register views in a mapping for unified navigation
         self.views = {
@@ -89,6 +93,13 @@ class MainWindow(QMainWindow):
         config_manager = ConfigManager(config_path)
         config_manager.load()
         return config_manager.get("is_first_launch", True)
+
+    def _read_analytics_consent(self) -> bool:
+        """Return the persisted analytics-consent flag (default: False)."""
+        config_path = ConfigManager.get_default_save_directory() / "config.json"
+        config_manager = ConfigManager(config_path)
+        config_manager.load()
+        return bool(config_manager.get("allow_usage_statistics", False))
 
     def _prompt_analytics_consent(self) -> None:
         """Show the first-run analytics consent dialog once."""

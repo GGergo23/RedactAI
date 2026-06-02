@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +18,7 @@ ImageSaver = Callable[[Image.Image, str | Path, str | None], Path]
 RedactionApplier = Callable[[Image.Image, list[RedactionTarget]], Image.Image]
 AnalyticsSubmitter = Callable[[int, bool], bool]
 ExportResultCallback = Callable[["ExportRunResult"], None]
+ExportProgressCallback = Callable[["ExportProgress"], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,19 +75,37 @@ class ExportRunResult:
     failed_images: int
     results: list[ExportImageResult]
     analytics_submitted: bool = False
+    cancelled: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class ExportProgress:
+    """Progress event emitted after each image in a batch finishes."""
+
+    total_images: int
+    completed_images: int
+    current_image_index: int
+    current_output_path: Path | None
+    success: bool
 
 
 class ExportTask:
     """Handle for a running non-blocking export job."""
 
-    def __init__(self, future: Future) -> None:
+    def __init__(self, future: Future, cancel_event: threading.Event) -> None:
         self._future = future
+        self._cancel_event = cancel_event
 
     @property
     def done(self) -> bool:
         """Return whether the background export job has finished."""
 
         return self._future.done()
+
+    def cancel(self) -> None:
+        """Request that the running export stop before its next image."""
+
+        self._cancel_event.set()
 
 
 class ExportOrchestrator:
@@ -108,42 +128,92 @@ class ExportOrchestrator:
         self,
         commands: list[ExportCommand],
         result_callback: ExportResultCallback | None = None,
+        progress_callback: ExportProgressCallback | None = None,
     ) -> ExportTask:
         """Start export work in one background thread and return immediately."""
 
+        cancel_event = threading.Event()
         future = self._task_executor.submit(
             self._export_and_callback,
             list(commands),
             result_callback,
+            progress_callback,
+            cancel_event,
         )
-        return ExportTask(future)
+        return ExportTask(future, cancel_event)
 
     def export(self, commands: list[ExportCommand]) -> ExportRunResult:
         """Export a batch of images and return per-image status."""
 
-        results: list[ExportImageResult] = []
-        for index, command in enumerate(commands):
-            results.append(self._export_one(index, command))
-
-        successful_images = sum(1 for result in results if result.success)
-        analytics_submitted = self._submit_export_analytics(results)
-        return ExportRunResult(
-            total_images=len(commands),
-            successful_images=successful_images,
-            failed_images=len(commands) - successful_images,
-            results=results,
-            analytics_submitted=analytics_submitted,
+        return self._run_batch(
+            commands,
+            progress_callback=None,
+            cancel_event=threading.Event(),
         )
 
     def _export_and_callback(
         self,
         commands: list[ExportCommand],
         result_callback: ExportResultCallback | None,
+        progress_callback: ExportProgressCallback | None,
+        cancel_event: threading.Event,
     ) -> ExportRunResult:
-        result = self.export(commands)
+        result = self._run_batch(
+            commands,
+            progress_callback=progress_callback,
+            cancel_event=cancel_event,
+        )
         if result_callback is not None:
             result_callback(result)
         return result
+
+    def _run_batch(
+        self,
+        commands: list[ExportCommand],
+        progress_callback: ExportProgressCallback | None,
+        cancel_event: threading.Event,
+    ) -> ExportRunResult:
+        total = len(commands)
+        results: list[ExportImageResult] = []
+        cancelled = False
+
+        for index, command in enumerate(commands):
+            if cancel_event.is_set():
+                cancelled = True
+                results.append(
+                    ExportImageResult(
+                        image_index=index,
+                        success=False,
+                        output_path=_safe_output_path(command.output_path),
+                        redaction_count=len(command.redactions),
+                        error="cancelled",
+                    )
+                )
+            else:
+                results.append(self._export_one(index, command))
+
+            if progress_callback is not None:
+                last = results[-1]
+                progress_callback(
+                    ExportProgress(
+                        total_images=total,
+                        completed_images=index + 1,
+                        current_image_index=index,
+                        current_output_path=last.output_path,
+                        success=last.success,
+                    )
+                )
+
+        successful_images = sum(1 for result in results if result.success)
+        analytics_submitted = self._submit_export_analytics(results)
+        return ExportRunResult(
+            total_images=total,
+            successful_images=successful_images,
+            failed_images=total - successful_images,
+            results=results,
+            analytics_submitted=analytics_submitted,
+            cancelled=cancelled,
+        )
 
     def _export_one(
         self,
