@@ -137,7 +137,9 @@ class ExportPageView(QWidget):
 
         commands = _build_export_commands(review_page_output)
         if not commands:
-            self.description.setText("Nothing to export. Returning to the home page.")
+            self.description.setText(
+                "Nothing to export. Click below to return to the home page."
+            )
             self.main_button.setText("Go back to Home")
             self.is_done = True
             return
