@@ -44,8 +44,35 @@ jobs:
         shell: bash
         run: |
           uv run python - <<'PY'
+          import time
+          import urllib.error
           import urllib.request
           from pathlib import Path
+
+          HEADERS = {'User-Agent': 'redactai-ci/1.0 (github-actions)'}
+          MAX_RETRIES = 5
+          BACKOFF_BASE = 5  # seconds
+
+          def download_with_retry(url: str, target: Path) -> None:
+              tmp = target.with_suffix(target.suffix + '.tmp')
+              for attempt in range(MAX_RETRIES):
+                  try:
+                      req = urllib.request.Request(url, headers=HEADERS)
+                      with urllib.request.urlopen(req, timeout=120) as resp:
+                          tmp.write_bytes(resp.read())
+                      tmp.replace(target)
+                      return
+                  except urllib.error.HTTPError as exc:
+                      if exc.code == 429:
+                          wait = int(exc.headers.get('Retry-After', BACKOFF_BASE * (2 ** attempt)))
+                          print(f'  429 rate-limited; retrying in {wait}s (attempt {attempt + 1}/{MAX_RETRIES})')
+                          time.sleep(wait)
+                      else:
+                          raise
+                  finally:
+                      if tmp.exists() and not target.exists():
+                          tmp.unlink()
+              raise RuntimeError(f'Failed to download {url} after {MAX_RETRIES} attempts')
 
           model_dir = Path('assets/models')
           model_dir.mkdir(parents=True, exist_ok=True)
@@ -59,7 +86,7 @@ jobs:
               target = model_dir / filename
               if not target.exists():
                   print(f'Downloading {filename}...')
-                  urllib.request.urlretrieve(url, target)
+                  download_with_retry(url, target)
               print(f'{filename}: {target}')
           PY
 
