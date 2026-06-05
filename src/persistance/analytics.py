@@ -70,5 +70,5 @@ def submit_analytics(
             if status is None:
                 status = response.getcode()
             return 200 <= int(status) < 300
-    except (urllib.error.URLError, TimeoutError, OSError):
+    except urllib.error.URLError, TimeoutError, OSError:
         return False
