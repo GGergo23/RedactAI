@@ -15,7 +15,7 @@ jobs:
     
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest, macos-11]
         python-version: ['3.14']
     
     steps:
@@ -66,8 +66,8 @@ jobs:
       - name: Build with PyInstaller
         run: uv run pyinstaller --onedir --name redactai --windowed --add-data "src/ui/styles:src/ui/styles" --add-data "assets/models:assets/models" src/main.py
 
-      - name: Create archive (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Create archive (Linux)
+        if: runner.os == 'Linux'
         run: |
           cd dist
           tar -czf redactai-${{ runner.os }}-${{ github.ref_name }}.tar.gz redactai/
@@ -78,6 +78,20 @@ jobs:
         run: |
           cd dist
           powershell -Command "Compress-Archive -Path redactai -DestinationPath redactai-Windows-${{ github.ref_name }}.zip"
+          cd ..
+
+      - name: Create archive (macOS arm64)
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd dist
+          tar -czf redactai-macos-arm64-${{ github.ref_name }}.tar.gz redactai/
+          cd ..
+
+      - name: Create archive (macOS intel)
+        if: matrix.os == 'macos-11'
+        run: |
+          cd dist
+          tar -czf redactai-macos-intel-${{ github.ref_name }}.tar.gz redactai/
           cd ..
 
       - name: Upload artifact
