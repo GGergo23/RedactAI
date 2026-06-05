@@ -41,6 +41,7 @@ jobs:
           uv run python -c "import urllib.request; import zipfile; from pathlib import Path; import shutil; model_dir = Path('assets/models'); model_dir.mkdir(parents=True, exist_ok=True); wheel_path = model_dir / 'en_core_web_sm-3.8.0-py3-none-any.whl'; urllib.request.urlretrieve('https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl', wheel_path); z = zipfile.ZipFile(wheel_path, 'r'); z.extractall(model_dir); z.close(); versioned = model_dir / 'en_core_web_sm' / 'en_core_web_sm-3.8.0'; shutil.move(str(versioned), str(model_dir / 'en_core_web_sm_tmp')) if versioned.exists() else None; shutil.rmtree(model_dir / 'en_core_web_sm') if (model_dir / 'en_core_web_sm').exists() else None; shutil.move(str(model_dir / 'en_core_web_sm_tmp'), str(model_dir / 'en_core_web_sm')) if (model_dir / 'en_core_web_sm_tmp').exists() else None"
 
       - name: Download object detection models
+        shell: bash
         run: |
           uv run python - <<'PY'
           import urllib.request
