@@ -5,6 +5,7 @@ from src.businessLogic.export_orchestrator import (
     ExportCommand,
     ExportImageResult,
     ExportOrchestrator,
+    ExportProgress,
     ExportRunResult,
     ExportTask,
 )
@@ -25,6 +26,7 @@ __all__ = [
     "ExportCommand",
     "ExportImageResult",
     "ExportOrchestrator",
+    "ExportProgress",
     "ExportRunResult",
     "ExportTask",
     "ImagePipelineResult",

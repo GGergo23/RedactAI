@@ -21,5 +21,5 @@ def test_default_save_directory():
 
     save_dir = cm.get_default_save_directory()
 
-    assert "Documents" in str(save_dir)
+    assert "Pictures" in str(save_dir)
     assert "RedactAI" in str(save_dir)
