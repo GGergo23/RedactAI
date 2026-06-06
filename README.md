@@ -7,7 +7,7 @@ RedactAI is a locally running desktop application, which automatically detects a
 
 For comprehensive instructions on how to install, configure, and use the application, please visit our official documentation:
 
-👉 **[RedactAI User Manual & Documentation](https://github.com/GGergo23/RedactAI/wiki)**
+**[RedactAI User Manual & Documentation](https://github.com/GGergo23/RedactAI/wiki)**
 
 The Wiki includes:
 - Step-by-step installation instructions for all platforms.
