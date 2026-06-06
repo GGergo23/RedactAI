@@ -3,6 +3,18 @@
 
 RedactAI is a locally running desktop application, which automatically detects and applies redactions to image files.
 
+## User Guide
+
+For comprehensive instructions on how to install, configure, and use the application, please visit our official documentation:
+
+**[RedactAI User Manual & Documentation](https://github.com/GGergo23/RedactAI/wiki)**
+
+The Wiki includes:
+- Step-by-step installation instructions for all platforms.
+- A quickstart guide for your first redaction.
+- Details on supported formats.
+- Troubleshooting and FAQs.
+
 ## Features
 
 - **Automatic Redaction**: RedactAI uses advanced algorithms to identify sensitive information in documents and applies redactions automatically, ensuring that confidential data is protected.
