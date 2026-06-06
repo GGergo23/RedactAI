@@ -15,7 +15,7 @@ jobs:
     
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest, macos-11]
+        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
         python-version: ['3.14']
     
     steps:
@@ -115,7 +115,7 @@ jobs:
           cd ..
 
       - name: Create archive (macOS intel)
-        if: matrix.os == 'macos-11'
+        if: matrix.os == 'macos-13'
         run: |
           cd dist
           tar -czf redactai-macos-intel-${{ github.ref_name }}.tar.gz redactai/
