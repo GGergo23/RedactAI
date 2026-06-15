@@ -15,7 +15,7 @@ jobs:
     
     strategy:
       matrix:
-        os: [windows-latest, macos-latest, macos-15-intel]
+        os: [windows-latest, macos-latest]
         python-version: ['3.14']
     
     steps:
@@ -105,13 +105,6 @@ jobs:
         run: |
           cd dist
           tar -czf redactai-macos-arm64-${{ github.ref_name }}.tar.gz redactai.app/
-          cd ..
-
-      - name: Create archive (macOS intel)
-        if: matrix.os == 'macos-15-intel'
-        run: |
-          cd dist
-          tar -czf redactai-macos-intel-${{ github.ref_name }}.tar.gz redactai.app/
           cd ..
 
       - name: Upload artifact
