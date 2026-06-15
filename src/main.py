@@ -17,7 +17,8 @@ def inject_path_for_macos() -> None:
         "/opt/local/bin",
     ]
     current_path = os.environ.get("PATH", "")
-    os.environ["PATH"] = os.pathsep.join(extra_paths + [current_path])
+    paths = extra_paths + ([current_path] if current_path else [])
+    os.environ["PATH"] = os.pathsep.join(paths)
 
     tesseract_path = shutil.which("tesseract")
     if tesseract_path:
