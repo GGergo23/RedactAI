@@ -44,9 +44,9 @@ class HomePage(QWidget):
 
         # Subtitle
         subtitle = QLabel(
-            f"Your AI-powered redaction assistant {len(os.environ.get("PATH", ""))} \n {os.environ.get("PATH", "").replace(os.pathsep, '\n')}"
+            f"Your AI-powered redaction assistant"
         )
-        subtitle.setProperty("role", "body")
+        subtitle.setProperty("role", "subtitle")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Drag area
