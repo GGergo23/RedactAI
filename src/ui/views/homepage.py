@@ -1,6 +1,5 @@
 """Homepage view with title, interactive drag target, and file open button."""
 
-import os
 from typing import Callable
 
 from PyQt6.QtCore import Qt
@@ -43,9 +42,7 @@ class HomePage(QWidget):
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Subtitle
-        subtitle = QLabel(
-            f"Your AI-powered redaction assistant"
-        )
+        subtitle = QLabel("Your AI-powered redaction assistant")
         subtitle.setProperty("role", "subtitle")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
