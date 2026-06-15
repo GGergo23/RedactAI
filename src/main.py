@@ -9,12 +9,13 @@ from src.ui.main_window import MainWindow
 
 
 def inject_path_for_macos() -> None:
-    """Inject additional paths into the PATH environment variable for macOS as is doesn't include them by default."""
+    """Inject additional paths into the PATH environment variable
+    for macOS as is doesn't include them by default."""
     extra_paths = [
         "/opt/homebrew/bin",
         "/usr/local/bin",
         "/opt/local/bin",
-        ]
+    ]
     current_path = os.environ.get("PATH", "")
     os.environ["PATH"] = os.pathsep.join(extra_paths + [current_path])
 
