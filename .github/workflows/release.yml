@@ -15,7 +15,7 @@ jobs:
     
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
+        os: [windows-latest, macos-latest, macos-13]
         python-version: ['3.14']
     
     steps:
@@ -92,13 +92,6 @@ jobs:
 
       - name: Build with PyInstaller
         run: uv run pyinstaller --onedir --name redactai --windowed --add-data "src/ui/styles:src/ui/styles" --add-data "assets/models:assets/models" src/main.py
-
-      - name: Create archive (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          cd dist
-          tar -czf redactai-${{ runner.os }}-${{ github.ref_name }}.tar.gz redactai/
-          cd ..
 
       - name: Create archive (Windows)
         if: runner.os == 'Windows'
