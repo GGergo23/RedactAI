@@ -1,8 +1,8 @@
-import sys
 import os
 import shutil
-import pytesseract
+import sys
 
+import pytesseract
 from PyQt6.QtWidgets import QApplication
 
 from src.ui.main_window import MainWindow
